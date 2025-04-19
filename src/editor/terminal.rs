@@ -3,7 +3,6 @@ use std::io::{
     Write,
     Error,
 };
-use core::fmt::Display;
 use crossterm::{
     terminal::{
         enable_raw_mode,
@@ -99,7 +98,7 @@ impl Terminal {
         return Ok(());
     }
 
-    pub fn print<T: Display>(s: T) -> Result<(), Error> {
+    pub fn print(s: &str) -> Result<(), Error> {
         Self::queue_cmd(Print(s))?;
 
         return Ok(());

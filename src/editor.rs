@@ -1,4 +1,5 @@
 mod terminal;
+mod view;
 
 use std::io::Error;
 use core::cmp::min;
@@ -19,8 +20,7 @@ use terminal::{
     Size,
     Position,
 };
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+use view::View;
 
 #[derive(Copy, Clone, Default)]
 struct Location {
@@ -147,7 +147,7 @@ impl Editor {
         if self.should_quit {
             Terminal::clear_all()?;
         } else {
-            Self::draw_lines()?;
+            View::render()?;
 
             Terminal::move_cursor_to(
                 Position {
@@ -159,50 +159,6 @@ impl Editor {
 
         Terminal::show_cursor()?;
         Terminal::execute()?;
-
-        return Ok(());
-    }
-
-    fn draw_welcome_msg() -> Result<(), Error> {
-        let mut welcome_msg = format!("Welcome to the Rsedit v{VERSION}!");
-        let width = Terminal::size()?.width as usize;
-        let length = welcome_msg.len();
-        let padding = (width - length) / 2;
-        let spaces = " ".repeat(padding - 1);
-
-        welcome_msg = format!("~{spaces}{welcome_msg}");
-        welcome_msg.truncate(width);
-
-        Terminal::print(&welcome_msg)?;
-
-        return Ok(());
-    }
-
-    fn draw_empty_line() -> Result<(), Error> {
-        Terminal::print("~")?;
-
-        return Ok(());
-    }
-
-    fn draw_lines() -> Result<(), Error> {
-        let Size {
-            width: _,
-            height
-        } = Terminal::size()?;
-
-        for current_line in 0..height {
-            Terminal::clear_line()?;
-
-            if current_line == height / 3 {
-                Self::draw_welcome_msg()?;
-            } else {
-                Self::draw_empty_line()?;
-            }
-
-            if current_line + 1 < height {
-                Terminal::print("\r\n")?;
-            }
-        }
 
         return Ok(());
     }
