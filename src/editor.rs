@@ -105,9 +105,7 @@ impl Editor {
                         self.view.handle_command(cmd);
                     }
                 },
-                Err(error) => {
-                    // panic!("{error}");
-                }
+                Err(_error) => {},
             }
         }
     }
@@ -117,7 +115,7 @@ impl Editor {
 
         self.view.render();
 
-        Terminal::move_cursor_to(self.view.get_position());
+        Terminal::move_cursor_to(self.view.get_cursor_position());
         Terminal::show_cursor();
         Terminal::execute();
     }
