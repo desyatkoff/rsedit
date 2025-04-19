@@ -1,3 +1,8 @@
+mod editor;
+
 fn main() {
-    println!("Hello, world!");
+    let ed = editor::Editor::new();
+
+    ed.run();
 }
+
