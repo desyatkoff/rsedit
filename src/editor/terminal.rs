@@ -26,14 +26,14 @@ pub struct Terminal;
 
 #[derive(Copy, Clone)]
 pub struct Size {
-    pub width: u16,
-    pub height: u16,
+    pub width: usize,
+    pub height: usize,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Position {
-    pub x: u16,
-    pub y: u16,
+    pub column: usize,
+    pub row: usize,
 }
 
 impl Terminal {
@@ -43,8 +43,8 @@ impl Terminal {
         Self::clear_all()?;
         Self::move_cursor_to(
             Position {
-                x: 0,
-                y: 0,
+                column: 0,
+                row: 0,
             }
         )?;
         Self::execute()?;
@@ -79,9 +79,9 @@ impl Terminal {
     pub fn move_cursor_to(pos: Position) -> Result<(), Error> {
         Self::queue_cmd(
             MoveTo(
-                pos.x,
-                pos.y
-            ),
+                pos.column as u16,
+                pos.row as u16
+            )
         )?;
 
         return Ok(());
@@ -106,12 +106,15 @@ impl Terminal {
     }
 
     pub fn size() -> Result<Size, Error> {
-        let (width, height) = size()?;
+        let (
+            width_u16,
+            height_u16
+        ) = size()?;
 
         return Ok(
             Size {
-                width,
-                height,
+                width: width_u16 as usize,
+                height: height_u16 as usize
             }
         );
     }
