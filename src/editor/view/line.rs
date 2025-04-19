@@ -20,5 +20,9 @@ impl Line {
 
         return String::from(self.string.get(start..end).unwrap_or_default());
     }
+
+    pub fn length(&self) -> usize {
+        return self.string.len();
+    }
 }
 

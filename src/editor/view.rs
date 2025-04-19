@@ -2,6 +2,7 @@ mod buffer;
 mod location;
 mod line;
 
+use std::cmp::min;
 use super::{
     terminal::{
         Terminal,
@@ -15,6 +16,7 @@ use super::{
 };
 use buffer::Buffer;
 use location::Location;
+use line::Line;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -109,24 +111,37 @@ impl View {
                 y = y.saturating_add(1);
             },
             Direction::Left => {
-                x = x.saturating_sub(1);
+                if x > 0 {
+                    x -= 1;
+                } else if y > 0 {
+                    y -= 1;
+                    x = self.buffer.lines.get(y).map_or(0, Line::length);
+                }
             },
             Direction::Right => {
-                x = x.saturating_add(1);
+                if x < self.buffer.lines.get(y).map_or(0, Line::length) {
+                    x += 1;
+                } else {
+                    y = y.saturating_add(1);
+                    x = 0;
+                }
             },
             Direction::PageUp => {
-                y = 0;
+                y = y.saturating_sub(height).saturating_sub(1);
             },
             Direction::PageDown => {
-                y = height.saturating_sub(1);
+                y = y.saturating_add(height).saturating_sub(1);
             },
             Direction::Home => {
                 x = 0;
             },
             Direction::End => {
-                x = width.saturating_sub(1);
+                x = self.buffer.lines.get(y).map_or(0, Line::length);
             }
         }
+
+        x = self.buffer.lines.get(y).map_or(0, |line| min(line.length(), x));
+        y = min(y, self.buffer.lines.len());
 
         self.location = Location {
             x,
