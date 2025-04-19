@@ -23,13 +23,13 @@ use crossterm::{
 
 pub struct Terminal;
 
-#[derive(Copy, Clone)]
+#[derive(Default, Copy, Clone)]
 pub struct Size {
     pub width: usize,
     pub height: usize,
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Default, Copy, Clone)]
 pub struct Position {
     pub column: usize,
     pub row: usize,

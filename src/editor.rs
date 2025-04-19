@@ -1,19 +1,18 @@
 mod terminal;
 mod view;
 
-use std::io::Error;
+use std::{
+    io::Error,
+    env,
+};
 use core::cmp::min;
-use crossterm::{
-    event::{
-        read,
-        Event,
-        Event::Key,
-        KeyCode,
-        KeyCode::Char,
-        KeyEvent,
-        KeyEventKind,
-        KeyModifiers,
-    }
+use crossterm::event::{
+    read,
+    Event,
+    KeyCode,
+    KeyEvent,
+    KeyEventKind,
+    KeyModifiers,
 };
 use terminal::{
     Terminal,
@@ -32,11 +31,18 @@ struct Location {
 pub struct Editor {
     should_quit: bool,
     location: Location,
+    view: View,
 }
 
 impl Editor {
     pub fn run(&mut self) {
         Terminal::init().unwrap();
+
+        let args: Vec<String> = env::args().collect();
+
+        if let Some(file) = args.get(1) {
+            self.view.load(file);
+        }
 
         let result = self.repl();
 
@@ -55,7 +61,7 @@ impl Editor {
 
             let event = read()?;
 
-            self.eval_event(&event)?;
+            self.eval_event(event)?;
         }
 
         return Ok(());
@@ -115,39 +121,60 @@ impl Editor {
         return Ok(());
     }
 
-    fn eval_event(&mut self, event: &Event) -> Result<(), Error> {
-        if let Key(
-            KeyEvent {
-                code,
-                modifiers,
-                kind: KeyEventKind::Press,
-                ..
-            }
-        ) = event {
-            match code {
-                Char('q') if *modifiers == KeyModifiers::CONTROL => {
+    fn eval_event(&mut self, event: Event) -> Result<(), Error> {
+        match event {
+            Event::Key(
+                KeyEvent {
+                    code,
+                    kind: KeyEventKind::Press,
+                    modifiers,
+                    ..
+                }
+            ) => match (code, modifiers) {
+                (
+                    KeyCode::Char('q'),
+                    KeyModifiers::CONTROL,
+                ) => {
                     self.should_quit = true;
                 },
-                KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right | KeyCode::PageUp | KeyCode::PageDown | KeyCode::Home | KeyCode::End => {
-                    self.move_point(*code)?;
+                (
+                    KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::Left
+                    | KeyCode::Right
+                    | KeyCode::PageDown
+                    | KeyCode::PageUp
+                    | KeyCode::End
+                    | KeyCode::Home,
+                    _,
+                ) => {
+                    self.move_point(code)?;
                 },
-                _ => {
-                    return Ok(());
-                }
-            }
+                _ => {}
+            },
+            Event::Resize(width_u16, height_u16) => {
+                let width = width_u16 as usize;
+                let height = height_u16 as usize;
+
+                self.view.resize(Size {
+                    width,
+                    height,
+                });
+            },
+            _ => {}
         }
 
         return Ok(());
     }
 
-    fn refresh_screen(&self) -> Result<(), Error> {
+    fn refresh_screen(&mut self) -> Result<(), Error> {
         Terminal::hide_cursor()?;
         Terminal::move_cursor_to(Position::default())?;
 
         if self.should_quit {
             Terminal::clear_all()?;
         } else {
-            View::render()?;
+            self.view.render()?;
 
             Terminal::move_cursor_to(
                 Position {
