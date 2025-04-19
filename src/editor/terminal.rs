@@ -3,6 +3,7 @@ use std::io::{
     Write,
     Error,
 };
+use core::fmt::Display;
 use crossterm::{
     terminal::{
         enable_raw_mode,
@@ -18,6 +19,7 @@ use crossterm::{
     },
     style::Print,
     queue,
+    Command,
 };
 
 pub struct Terminal;
@@ -59,8 +61,7 @@ impl Terminal {
     }
 
     pub fn clear_all() -> Result<(), Error> {
-        queue!(
-            stdout(),
+        Self::queue_cmd(
             Clear(ClearType::All),
         )?;
 
@@ -68,8 +69,7 @@ impl Terminal {
     }
 
     pub fn clear_line() -> Result<(), Error> {
-        queue!(
-            stdout(),
+        Self::queue_cmd(
             Clear(ClearType::CurrentLine),
         )?;
 
@@ -77,8 +77,7 @@ impl Terminal {
     }
 
     pub fn move_cursor_to(pos: Position) -> Result<(), Error> {
-        queue!(
-            stdout(),
+        Self::queue_cmd(
             MoveTo(
                 pos.x,
                 pos.y
@@ -89,28 +88,19 @@ impl Terminal {
     }
 
     pub fn hide_cursor() -> Result<(), Error> {
-        queue!(
-            stdout(),
-            Hide
-        )?;
+        Self::queue_cmd(Hide)?;
 
         return Ok(());
     }
 
     pub fn show_cursor() -> Result<(), Error> {
-        queue!(
-            stdout(),
-            Show
-        )?;
+        Self::queue_cmd(Show)?;
 
         return Ok(());
     }
 
-    pub fn print(s: &str) -> Result<(), Error> {
-        queue!(
-            stdout(),
-            Print(s)
-        )?;
+    pub fn print<T: Display>(s: T) -> Result<(), Error> {
+        Self::queue_cmd(Print(s))?;
 
         return Ok(());
     }
@@ -130,5 +120,15 @@ impl Terminal {
         stdout().flush()?;
 
         return Ok(());
-    }}
+    }
+
+    pub fn queue_cmd<T: Command>(cmd: T) -> Result<(), Error> {
+        queue!(
+            stdout(),
+            cmd
+        )?;
+
+        return Ok(());
+    }
+}
 
