@@ -4,6 +4,10 @@ mod view;
 use std::{
     io::Error,
     env,
+    panic::{
+        set_hook,
+        take_hook,
+    },
 };
 use core::cmp::min;
 use crossterm::event::{
@@ -27,7 +31,6 @@ struct Location {
     y: usize,
 }
 
-#[derive(Default)]
 pub struct Editor {
     should_quit: bool,
     location: Location,
@@ -35,66 +38,75 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn run(&mut self) {
-        Terminal::init().unwrap();
+    pub fn new() -> Result<Self, Error> {
+        let current_hook = take_hook();
 
+        set_hook(
+            Box::new(
+                move |panic_info| {
+                    let _ = Terminal::kill();
+
+                    current_hook(panic_info);
+                }
+            )
+        );
+
+        Terminal::init()?;
+
+        let mut view = View::default();
         let args: Vec<String> = env::args().collect();
 
         if let Some(file) = args.get(1) {
-            self.view.load(file);
+            view.load(file);
         }
 
-        let result = self.repl();
-
-        Terminal::kill().unwrap();
-
-        result.unwrap();
+        return Ok(
+            Self {
+                should_quit: false,
+                location: Location::default(),
+                view,
+            }
+        );
     }
 
-    fn repl(&mut self) -> Result<(), Error> {
+    pub fn run(&mut self) {
         loop {
-            self.refresh_screen()?;
+            self.refresh_screen();
 
             if self.should_quit {
                 break;
             }
 
-            let event = read()?;
-
-            self.eval_event(event)?;
+            match read() {
+                Ok(event) => {
+                    self.eval_event(event);
+                },
+                Err(error) => {
+                    panic!("{error:?}");
+                }
+            }
         }
-
-        return Ok(());
     }
 
-    fn move_point(&mut self, key_code: KeyCode) -> Result<(), Error> {
-        let Location {
-            mut x,
-            mut y
-        } = self.location;
+    fn move_point(&mut self, key_code: KeyCode) {
+        let Location { mut x, mut y } = self.location;
         let Size {
             width,
-            height
-        } = Terminal::size()?;
+            height,
+        } = Terminal::size().unwrap_or_default();
 
         match key_code {
             KeyCode::Up => {
                 y = y.saturating_sub(1);
             },
             KeyCode::Down => {
-                y = min(
-                    height.saturating_sub(1),
-                    y.saturating_add(1),
-                );
+                y = min(height.saturating_sub(1), y.saturating_add(1));
             },
             KeyCode::Left => {
                 x = x.saturating_sub(1);
             },
             KeyCode::Right => {
-                x = min(
-                    width.saturating_sub(1),
-                    x.saturating_add(1)
-                );
+                x = min(width.saturating_sub(1), x.saturating_add(1));
             },
             KeyCode::PageUp => {
                 y = 0;
@@ -109,19 +121,17 @@ impl Editor {
                 x = width.saturating_sub(1);
             },
             _ => {
-                return Ok(());
+                return;
             },
         }
 
         self.location = Location {
             x,
-            y
+            y,
         };
-
-        return Ok(());
     }
 
-    fn eval_event(&mut self, event: Event) -> Result<(), Error> {
+    fn eval_event(&mut self, event: Event) {
         match event {
             Event::Key(
                 KeyEvent {
@@ -142,52 +152,43 @@ impl Editor {
                     | KeyCode::Down
                     | KeyCode::Left
                     | KeyCode::Right
-                    | KeyCode::PageDown
                     | KeyCode::PageUp
-                    | KeyCode::End
-                    | KeyCode::Home,
+                    | KeyCode::PageDown
+                    | KeyCode::Home
+                    | KeyCode::End,
                     _,
                 ) => {
-                    self.move_point(code)?;
+                    self.move_point(code);
                 },
-                _ => {}
+                _ => {},
             },
             Event::Resize(width_u16, height_u16) => {
-                let width = width_u16 as usize;
-                let height = height_u16 as usize;
-
-                self.view.resize(Size {
-                    width,
-                    height,
-                });
+                self.view.resize(
+                    Size {
+                        width: width_u16 as usize,
+                        height: height_u16 as usize,
+                    }
+                );
             },
-            _ => {}
+            _ => {},
         }
-
-        return Ok(());
     }
 
-    fn refresh_screen(&mut self) -> Result<(), Error> {
-        Terminal::hide_cursor()?;
-        Terminal::move_cursor_to(Position::default())?;
+    fn refresh_screen(&mut self) {
+        Terminal::hide_cursor();
 
-        if self.should_quit {
-            Terminal::clear_all()?;
-        } else {
-            self.view.render()?;
+        self.view.render();
 
-            Terminal::move_cursor_to(
-                Position {
-                    column: self.location.x,
-                    row: self.location.y
-                }
-            )?;
-        }
+        Terminal::move_cursor_to(
+            Position {
+                column: self.location.x,
+                row: self.location.y,
+            }
+        );
 
-        Terminal::show_cursor()?;
-        Terminal::execute()?;
+        Terminal::show_cursor();
 
-        return Ok(());
+        Terminal::execute();
     }
 }
 

@@ -10,6 +10,8 @@ use crossterm::{
         size,
         Clear,
         ClearType,
+        EnterAlternateScreen,
+        LeaveAlternateScreen,
     },
     cursor::{
         MoveTo,
@@ -39,6 +41,7 @@ impl Terminal {
     pub fn init() -> Result<(), Error> {
         enable_raw_mode()?;
 
+        Self::enter_altscreen()?;
         Self::clear_all()?;
         Self::move_cursor_to(
             Position {
@@ -52,9 +55,23 @@ impl Terminal {
     }
 
     pub fn kill() -> Result<(), Error> {
+        Self::leave_altscreen()?;
+        Self::show_cursor()?;
         Self::execute()?;
 
         disable_raw_mode()?;
+
+        return Ok(());
+    }
+
+    pub fn enter_altscreen() -> Result<(), Error> {
+        Self::queue_cmd(EnterAlternateScreen)?;
+
+        return Ok(());
+    }
+
+    pub fn leave_altscreen() -> Result<(), Error> {
+        Self::queue_cmd(LeaveAlternateScreen)?;
 
         return Ok(());
     }
@@ -100,6 +117,19 @@ impl Terminal {
 
     pub fn print(s: &str) -> Result<(), Error> {
         Self::queue_cmd(Print(s))?;
+
+        return Ok(());
+    }
+
+    pub fn print_line(line_number: usize, data: &str) -> Result<(), Error> {
+        Self::move_cursor_to(
+            Position {
+                row: line_number,
+                column: 0,
+            }
+        )?;
+        Self::clear_line()?;
+        Self::print(data)?;
 
         return Ok(());
     }
