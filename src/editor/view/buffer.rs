@@ -41,8 +41,16 @@ impl Buffer {
     }
 
     pub fn remove_char(&mut self, at_where: Location) {
-        if let Some(line) = self.lines.get_mut(at_where.line_index) {
-            line.remove_char(at_where.grapheme_index);
+        if let Some(line) = self.lines.get(at_where.line_index) {
+            if at_where.grapheme_index >= line.grapheme_count() && self.lines.len() > at_where.line_index.saturating_add(1) {
+                let next_line = self.lines.remove(
+                    at_where.line_index.saturating_add(1)
+                );
+
+                self.lines[at_where.line_index].append(&next_line);
+            } else if at_where.grapheme_index < line.grapheme_count() {
+                self.lines[at_where.line_index].remove_char(at_where.grapheme_index);
+            }
         }
     }
 
