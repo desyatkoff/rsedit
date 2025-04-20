@@ -92,6 +92,9 @@ impl View {
             EditorCmd::DeleteRight => {
                 self.delete_right();
             },
+            EditorCmd::Save => {
+                self.save();
+            },
             EditorCmd::Quit => {},
         }
     }
@@ -101,6 +104,10 @@ impl View {
             self.buffer = buffer;
             self.needs_redraw = true;
         }
+    }
+
+    pub fn save(&mut self) {
+        self.buffer.save();
     }
 
     pub fn get_cursor_position(&self) -> Position {

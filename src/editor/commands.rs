@@ -24,6 +24,7 @@ pub enum EditorCmd {
     Enter,
     DeleteLeft,
     DeleteRight,
+    Save,
     Quit,
 }
 
@@ -33,6 +34,12 @@ impl TryFrom<Event> for EditorCmd {
     fn try_from(event: Event) -> Result<Self, Self::Error> {
         match event {
             Event::Key(KeyEvent {code, modifiers, ..} ) => match (code, modifiers) {
+                (
+                    KeyCode::Char('s'),
+                    KeyModifiers::CONTROL
+                ) => {
+                    return Ok(Self::Save);
+                },
                 (
                     KeyCode::Char('q'),
                     KeyModifiers::CONTROL

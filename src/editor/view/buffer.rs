@@ -1,6 +1,12 @@
 use std::{
-    io::Error,
-    fs::read_to_string,
+    io::{
+        Error,
+        Write,
+    },
+    fs::{
+        read_to_string,
+        File,
+    },
 };
 use super::{
     line::Line,
@@ -10,6 +16,7 @@ use super::{
 #[derive(Default)]
 pub struct Buffer {
     pub lines: Vec<Line>,
+    file: Option<String>,
 }
 
 impl Buffer {
@@ -21,7 +28,27 @@ impl Buffer {
             lines.push(Line::from(line_data));
         }
 
-        return Ok(Self { lines });
+        return Ok(
+            Self {
+                lines,
+                file: Some(String::from(file)),
+            }
+        );
+    }
+
+    pub fn save(&self) -> Result<(), Error> {
+        if let Some(file) = &self.file {
+            let mut file = File::create(file)?;
+
+            for line in &self.lines {
+                writeln!(
+                    file,
+                    "{line}"
+                )?;
+            }
+        }
+
+        return Ok(());
     }
 
     pub fn insert_char(&mut self, character: char, at_where: Location) {
