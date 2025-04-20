@@ -83,6 +83,12 @@ impl View {
             EditorCmd::Insert(character) => {
                 self.insert_char(character);
             },
+            EditorCmd::DeleteLeft => {
+                self.delete_left();
+            },
+            EditorCmd::DeleteRight => {
+                self.delete_right();
+            },
             EditorCmd::Quit => {},
         }
     }
@@ -170,7 +176,7 @@ impl View {
     fn move_left(&mut self) {
         if self.text_location.grapheme_index > 0 {
             self.text_location.grapheme_index -= 1;
-        } else {
+        } else if self.text_location.line_index > 0 {
             self.move_up(1);
             self.move_to_end_of_line();
         }
@@ -263,6 +269,19 @@ impl View {
         if grapheme_delta > 0 {
             self.move_right();
         }
+
+        self.needs_redraw = true;
+    }
+
+    fn delete_left(&mut self) {
+        self.move_left();
+        self.buffer.remove_char(self.text_location);
+
+        self.needs_redraw = true;
+    }
+
+    fn delete_right(&mut self) {
+        self.buffer.remove_char(self.text_location);
 
         self.needs_redraw = true;
     }

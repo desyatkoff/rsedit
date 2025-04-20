@@ -117,6 +117,18 @@ impl Line {
         self.fragments = Self::str_to_fragments(&result);
     }
 
+    pub fn remove_char(&mut self, grapheme_index: usize) {
+        let mut result = String::new();
+
+        for (index, fragment) in self.fragments.iter().enumerate() {
+            if index != grapheme_index {
+                result.push_str(&fragment.grapheme)
+            }
+        }
+
+        self.fragments = Self::str_to_fragments(&result);
+    }
+
     pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {
         if range.start >= range.end {
             return String::new();

@@ -40,6 +40,12 @@ impl Buffer {
         }
     }
 
+    pub fn remove_char(&mut self, at_where: Location) {
+        if let Some(line) = self.lines.get_mut(at_where.line_index) {
+            line.remove_char(at_where.grapheme_index);
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         return self.lines.is_empty();
     }
