@@ -83,6 +83,9 @@ impl View {
             EditorCmd::Insert(character) => {
                 self.insert_char(character);
             },
+            EditorCmd::Enter => {
+                self.insert_line();
+            },
             EditorCmd::DeleteLeft => {
                 self.delete_left();
             },
@@ -269,6 +272,13 @@ impl View {
         if grapheme_delta > 0 {
             self.move_text_location(&Direction::Right);
         }
+
+        self.needs_redraw = true;
+    }
+
+    fn insert_line(&mut self) {
+        self.buffer.insert_line(self.text_location);
+        self.move_text_location(&Direction::Right);
 
         self.needs_redraw = true;
     }

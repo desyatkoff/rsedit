@@ -30,6 +30,7 @@ struct TextFragment {
     replacement: Option<char>,
 }
 
+#[derive(Default)]
 pub struct Line {
     fragments: Vec<TextFragment>,
 }
@@ -102,29 +103,29 @@ impl Line {
         }
     }
 
-    pub fn insert_char(&mut self, character: char, grapheme_index: usize) {
+    pub fn insert_char(&mut self, character: char, at_where: usize) {
         let mut result = String::new();
 
         for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == grapheme_index {
+            if index == at_where {
                 result.push(character);
             }
 
             result.push_str(&fragment.grapheme);
         }
 
-        if grapheme_index >= self.fragments.len() {
+        if at_where >= self.fragments.len() {
             result.push(character);
         }
 
         self.fragments = Self::str_to_fragments(&result);
     }
 
-    pub fn remove_char(&mut self, grapheme_index: usize) {
+    pub fn remove_char(&mut self, at_where: usize) {
         let mut result = String::new();
 
         for (index, fragment) in self.fragments.iter().enumerate() {
-            if index != grapheme_index {
+            if index != at_where {
                 result.push_str(&fragment.grapheme)
             }
         }
@@ -136,6 +137,18 @@ impl Line {
         let mut concat = self.to_string();
         concat.push_str(&other.to_string());
         self.fragments = Self::str_to_fragments(&concat);
+    }
+
+    pub fn split(&mut self, at_where: usize) -> Self {
+        let remainder = self.fragments.split_off(at_where);
+
+        if at_where > self.fragments.len() {
+            return Self::default();
+        }
+
+        return Self {
+            fragments: remainder
+        };
     }
 
     pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {

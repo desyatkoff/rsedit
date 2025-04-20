@@ -25,11 +25,11 @@ impl Buffer {
     }
 
     pub fn insert_char(&mut self, character: char, at_where: Location) {
-        if at_where.line_index > self.lines.len() {
+        if at_where.line_index > self.height() {
             return;
         }
 
-        if at_where.line_index == self.lines.len() {
+        if at_where.line_index == self.height() {
             self.lines.push(
                 Line::from(
                     &String::from(character)
@@ -40,9 +40,22 @@ impl Buffer {
         }
     }
 
+    pub fn insert_line(&mut self, at_where: Location) {
+        if at_where.line_index == self.height() {
+            self.lines.push(Line::default());
+        } else if let Some(line) = self.lines.get_mut(at_where.line_index) {
+            let new_line = line.split(at_where.grapheme_index);
+
+            self.lines.insert(
+                at_where.line_index.saturating_add(1),
+                new_line
+            );
+        }
+    }
+
     pub fn remove_char(&mut self, at_where: Location) {
         if let Some(line) = self.lines.get(at_where.line_index) {
-            if at_where.grapheme_index >= line.grapheme_count() && self.lines.len() > at_where.line_index.saturating_add(1) {
+            if at_where.grapheme_index >= line.grapheme_count() && self.height() > at_where.line_index.saturating_add(1) {
                 let next_line = self.lines.remove(
                     at_where.line_index.saturating_add(1)
                 );

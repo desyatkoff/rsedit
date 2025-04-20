@@ -21,6 +21,7 @@ pub enum EditorCmd {
     Move(Direction),
     Resize(Size),
     Insert(char),
+    Enter,
     DeleteLeft,
     DeleteRight,
     Quit,
@@ -91,6 +92,18 @@ impl TryFrom<Event> for EditorCmd {
                     _
                 ) => {
                     return Ok(Self::Insert(c));
+                },
+                (
+                    KeyCode::Tab,
+                    _
+                ) => {
+                    return Ok(Self::Insert('\t'));
+                },
+                (
+                    KeyCode::Enter,
+                    _
+                ) => {
+                    return Ok(Self::Enter);
                 },
                 (
                     KeyCode::Backspace,
