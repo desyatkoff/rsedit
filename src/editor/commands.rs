@@ -20,6 +20,7 @@ pub enum Direction {
 pub enum EditorCmd {
     Move(Direction),
     Resize(Size),
+    Insert(char),
     Quit,
 }
 
@@ -82,6 +83,12 @@ impl TryFrom<Event> for EditorCmd {
                     _
                 ) => {
                     return Ok(Self::Move(Direction::End));
+                },
+                (
+                    KeyCode::Char(c),
+                    _
+                ) => {
+                    return Ok(Self::Insert(c));
                 },
                 _ => {
                     return Err(String::from(""));

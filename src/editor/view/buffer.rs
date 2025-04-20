@@ -2,7 +2,10 @@ use std::{
     io::Error,
     fs::read_to_string,
 };
-use super::line::Line;
+use super::{
+    line::Line,
+    Location,
+};
 
 #[derive(Default)]
 pub struct Buffer {
@@ -19,6 +22,22 @@ impl Buffer {
         }
 
         return Ok(Self { lines });
+    }
+
+    pub fn insert_char(&mut self, character: char, at_where: Location) {
+        if at_where.line_index > self.lines.len() {
+            return;
+        }
+
+        if at_where.line_index == self.lines.len() {
+            self.lines.push(
+                Line::from(
+                    &String::from(character)
+                )
+            );
+        } else if let Some(line) = self.lines.get_mut(at_where.line_index) {
+            line.insert_char(character, at_where.grapheme_index);
+        }
     }
 
     pub fn is_empty(&self) -> bool {

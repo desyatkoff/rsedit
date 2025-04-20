@@ -75,12 +75,15 @@ impl View {
     pub fn handle_command(&mut self, command: EditorCmd) {
         match command {
             EditorCmd::Resize(size) => {
-                self.resize(size)
+                self.resize(size);
             },
             EditorCmd::Move(direction) => {
-                self.move_text_location(&direction)
+                self.move_text_location(&direction);
             },
-            EditorCmd::Quit => {}
+            EditorCmd::Insert(character) => {
+                self.insert_char(character);
+            },
+            EditorCmd::Quit => {},
         }
     }
 
@@ -243,6 +246,25 @@ impl View {
 
         self.scroll_horizontally(column);
         self.scroll_vertically(row);
+    }
+
+    fn insert_char(&mut self, character: char) {
+        let old_length = self.buffer.lines.get(self.text_location.line_index).map_or(0, Line::grapheme_count);
+
+        self.buffer.insert_char(
+            character,
+            self.text_location
+        );
+
+        let new_length = self.buffer.lines.get(self.text_location.line_index).map_or(0, Line::grapheme_count);
+
+        let grapheme_delta = new_length.saturating_sub(old_length);
+
+        if grapheme_delta > 0 {
+            self.move_right();
+        }
+
+        self.needs_redraw = true;
     }
 
     fn render_line(line_number: usize, data: &str) {
