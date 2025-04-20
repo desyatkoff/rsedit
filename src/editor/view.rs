@@ -267,17 +267,19 @@ impl View {
         let grapheme_delta = new_length.saturating_sub(old_length);
 
         if grapheme_delta > 0 {
-            self.move_right();
+            self.move_text_location(&Direction::Right);
         }
 
         self.needs_redraw = true;
     }
 
     fn delete_left(&mut self) {
-        self.move_left();
-        self.buffer.remove_char(self.text_location);
+        if self.text_location.line_index != 0 || self.text_location.grapheme_index != 0 {
+            self.move_text_location(&Direction::Left);
+            self.buffer.remove_char(self.text_location);
 
-        self.needs_redraw = true;
+            self.needs_redraw = true;
+        }
     }
 
     fn delete_right(&mut self) {
