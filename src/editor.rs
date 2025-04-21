@@ -1,6 +1,9 @@
 mod terminal;
 mod view;
 mod commands;
+mod statusbar;
+mod filestatus;
+mod fileinfo;
 
 use std::{
     io::Error,
@@ -19,10 +22,16 @@ use crossterm::event::{
 use terminal::Terminal;
 use view::View;
 use commands::EditorCmd;
+use statusbar::StatusBar;
+use filestatus::FileStatus;
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Editor {
     should_quit: bool,
     view: View,
+    statusbar: StatusBar,
+    title: String,
 }
 
 impl Editor {
@@ -41,24 +50,27 @@ impl Editor {
 
         Terminal::init()?;
 
-        let mut view = View::default();
+        let mut editor = Self {
+            should_quit: false,
+            view: View::new(2),
+            statusbar: StatusBar::new(1),
+            title: String::new(),
+        };
+
         let args: Vec<String> = env::args().collect();
 
         if let Some(file) = args.get(1) {
-            view.load(file);
+            editor.view.load(file);
         }
 
-        return Ok(
-            Self {
-                should_quit: false,
-                view,
-            }
-        );
+        editor.update_status();
+
+        return Ok(editor);
     }
 
     pub fn run(&mut self) {
         loop {
-            self.refresh_screen();
+            self.update_screen();
 
             if self.should_quit {
                 break;
@@ -72,6 +84,10 @@ impl Editor {
                     panic!("{error:?}");
                 }
             }
+
+            let status = self.view.get_current_status();
+
+            self.statusbar.update_status(status);
         }
     }
 
@@ -103,6 +119,10 @@ impl Editor {
                         self.should_quit = true;
                     } else {
                         self.view.handle_command(cmd);
+
+                        if let EditorCmd::Resize(size) = cmd {
+                            self.statusbar.resize(size);
+                        }
                     }
                 },
                 Err(_error) => {},
@@ -110,10 +130,29 @@ impl Editor {
         }
     }
 
-    fn refresh_screen(&mut self) {
+    pub fn update_status(&mut self) {
+        let status = self.view.get_current_status();
+        let title = format!(
+            "Rsedit :: {:?}",
+            status.file_name,
+        );
+
+        self.statusbar.update_status(status);
+
+        if title != self.title &&
+            matches!(
+                Terminal::set_title(&title),
+                Ok(())
+            ) {
+            self.title = title;
+        }
+    }
+
+    fn update_screen(&mut self) {
         Terminal::hide_cursor();
 
         self.view.render();
+        self.statusbar.render();
 
         Terminal::move_cursor_to(self.view.get_cursor_position());
         Terminal::show_cursor();

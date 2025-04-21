@@ -8,6 +8,7 @@ use std::{
         File,
     },
 };
+use crate::editor::fileinfo::FileInfo;
 use super::{
     line::Line,
     Location,
@@ -16,7 +17,8 @@ use super::{
 #[derive(Default)]
 pub struct Buffer {
     pub lines: Vec<Line>,
-    file: Option<String>,
+    pub modified: bool,
+    pub file_info: FileInfo,
 }
 
 impl Buffer {
@@ -30,15 +32,16 @@ impl Buffer {
 
         return Ok(
             Self {
-                lines,
-                file: Some(String::from(file)),
+                lines: lines,
+                modified: false,
+                file_info: FileInfo::from(file),
             }
         );
     }
 
-    pub fn save(&self) -> Result<(), Error> {
-        if let Some(file) = &self.file {
-            let mut file = File::create(file)?;
+    pub fn save(&mut self) -> Result<(), Error> {
+        if let Some(file_path) = &self.file_info.file_path {
+            let mut file = File::create(file_path)?;
 
             for line in &self.lines {
                 writeln!(
@@ -46,6 +49,8 @@ impl Buffer {
                     "{line}"
                 )?;
             }
+
+            self.modified = false;
         }
 
         return Ok(());
@@ -62,14 +67,20 @@ impl Buffer {
                     &String::from(character)
                 )
             );
+
+            self.modified = true;
         } else if let Some(line) = self.lines.get_mut(at_where.line_index) {
             line.insert_char(character, at_where.grapheme_index);
+
+            self.modified = true;
         }
     }
 
     pub fn insert_line(&mut self, at_where: Location) {
         if at_where.line_index == self.height() {
             self.lines.push(Line::default());
+
+            self.modified = true;
         } else if let Some(line) = self.lines.get_mut(at_where.line_index) {
             let new_line = line.split(at_where.grapheme_index);
 
@@ -77,6 +88,8 @@ impl Buffer {
                 at_where.line_index.saturating_add(1),
                 new_line
             );
+
+            self.modified = true;
         }
     }
 
@@ -88,8 +101,12 @@ impl Buffer {
                 );
 
                 self.lines[at_where.line_index].append(&next_line);
+
+                self.modified = true;
             } else if at_where.grapheme_index < line.grapheme_count() {
                 self.lines[at_where.line_index].remove_char(at_where.grapheme_index);
+
+                self.modified = true;
             }
         }
     }
