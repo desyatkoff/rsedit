@@ -12,13 +12,19 @@ use crossterm::{
         ClearType,
         EnterAlternateScreen,
         LeaveAlternateScreen,
+        EnableLineWrap,
+        DisableLineWrap,
+        SetTitle
     },
     cursor::{
         MoveTo,
         Hide,
         Show,
     },
-    style::Print,
+    style::{
+        Print,
+        Attribute,
+    },
     queue,
     Command,
 };
@@ -30,6 +36,7 @@ impl Terminal {
         enable_raw_mode()?;
 
         Self::enter_altscreen()?;
+        Self::disable_line_wrap()?;
         Self::clear_all()?;
         Self::move_cursor_to(
             Position {
@@ -44,6 +51,7 @@ impl Terminal {
 
     pub fn kill() -> Result<(), Error> {
         Self::leave_altscreen()?;
+        Self::enable_line_wrap()?;
         Self::show_cursor()?;
         Self::execute()?;
 
@@ -103,6 +111,24 @@ impl Terminal {
         return Ok(());
     }
 
+    pub fn enable_line_wrap() -> Result<(), Error> {
+        Self::queue_cmd(EnableLineWrap)?;
+
+        return Ok(());
+    }
+
+    pub fn disable_line_wrap() -> Result<(), Error> {
+        Self::queue_cmd(DisableLineWrap)?;
+
+        return Ok(());
+    }
+
+    pub fn set_title(new_title: &str) -> Result<(), Error> {
+        Self::queue_cmd(SetTitle(new_title))?;
+
+        return Ok(());
+    }
+
     pub fn print(s: &str) -> Result<(), Error> {
         Self::queue_cmd(Print(s))?;
 
@@ -120,6 +146,20 @@ impl Terminal {
         Self::print(data)?;
 
         return Ok(());
+    }
+
+    pub fn print_inverted_line(line_number: usize, data: &str) -> Result<(), Error> {
+        let width = Self::size()?.width;
+
+        return Self::print_line(
+            line_number,
+            &format!(
+                "{}{:width$.width$}{}",
+                Attribute::Reverse,
+                data,
+                Attribute::Reset,
+            ),
+        );
     }
 
     pub fn size() -> Result<Size, Error> {

@@ -12,11 +12,11 @@ use super::{
         Direction,
         EditorCmd,
     },
+    FileStatus,
+    VERSION,
 };
 use buffer::Buffer;
 use line::Line;
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default, Copy, Clone)]
 pub struct Location {
@@ -28,13 +28,45 @@ pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
     size: Size,
+    margin_bottom: usize,
     text_location: Location,
     scroll_offset: Position,
 }
 
 impl View {
+    pub fn new(margin_bottom: usize) -> Self {
+        return Self {
+            buffer: Buffer::default(),
+            needs_redraw: true,
+            size: Size {
+                width: Terminal::size()
+                    .unwrap_or_default()
+                    .width,
+                height: Terminal::size()
+                    .unwrap_or_default()
+                    .height
+                    .saturating_sub(margin_bottom),
+            },
+            margin_bottom: margin_bottom,
+            text_location: Location::default(),
+            scroll_offset: Position::default(),
+        };
+    }
+
+    pub fn get_current_status(&self) -> FileStatus {
+        return FileStatus {
+            lines_count: self.buffer.height(),
+            current_line_index: self.text_location.line_index,
+            modified: self.buffer.modified,
+            file_name: format!(
+                "{}",
+                self.buffer.file_info,
+            ).into(),
+        };
+    }
+
     pub fn render(&mut self) {
-        if !self.needs_redraw {
+        if !self.needs_redraw || self.size.height == 0 {
             return;
         }
 
@@ -82,6 +114,9 @@ impl View {
             },
             EditorCmd::Insert(character) => {
                 self.insert_char(character);
+            },
+            EditorCmd::Tab => {
+                self.insert_tab();
             },
             EditorCmd::Enter => {
                 self.insert_line();
@@ -209,7 +244,12 @@ impl View {
     }
 
     fn resize(&mut self, new_size: Size) {
-        self.size = new_size;
+        self.size = Size {
+            width: new_size.width,
+            height: new_size
+                .height
+                .saturating_sub(self.margin_bottom),
+        };
         self.scroll_text_location_into_view();
         self.needs_redraw = true;
     }
@@ -283,6 +323,12 @@ impl View {
         self.needs_redraw = true;
     }
 
+    fn insert_tab(&mut self) {
+        for _ in 0..4 {
+            self.insert_char(' ');
+        }
+    }
+
     fn insert_line(&mut self) {
         self.buffer.insert_line(self.text_location);
         self.move_text_location(&Direction::Right);
@@ -311,34 +357,23 @@ impl View {
 
     fn render_welcome(width: usize) -> String {
         if width == 0 {
-            return String::from(" ");
+            return String::new();
         }
 
-        let welcome_msg = format!("Welcome to the Rsedit v{VERSION}!");
+        let remaining_width = width.saturating_sub(1);
+
+        let welcome_msg = format!("WELCOME TO THE RSEDIT V{VERSION}!");
         let length = welcome_msg.len();
 
-        if width <= length {
+        if remaining_width < length {
             return String::from("~");
         }
 
-        let padding = (width.saturating_sub(length).saturating_sub(1)) / 2;
-
-        let mut full_message = format!("~{}{}", " ".repeat(padding), welcome_msg);
-        full_message.truncate(width);
-
-        return full_message;
-    }
-}
-
-impl Default for View {
-    fn default() -> Self {
-        return Self {
-            buffer: Buffer::default(),
-            needs_redraw: true,
-            size: Terminal::size().unwrap_or_default(),
-            text_location: Location::default(),
-            scroll_offset: Position::default(),
-        };
+        return format!(
+            "{:<1}{:^remaining_width$}",
+            "~",
+            welcome_msg,
+        );
     }
 }
 

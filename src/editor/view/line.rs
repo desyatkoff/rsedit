@@ -200,12 +200,17 @@ impl Line {
 
 impl fmt::Display for Line {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        let result: String = self.fragments.iter().map(|fragment| fragment.grapheme.clone()).collect();
+        let result: String = self
+            .fragments
+            .iter()
+            .map(
+                |fragment| fragment.grapheme.clone()
+            ).collect();
 
-        write!(
+        return write!(
             formatter,
             "{result}",
-        )
+        );
     }
 }
 

@@ -7,6 +7,7 @@ use crossterm::event::{
 };
 use super::terminal::Size;
 
+#[derive(Copy, Clone)]
 pub enum Direction {
     PageUp,
     PageDown,
@@ -17,10 +18,13 @@ pub enum Direction {
     Right,
     Down,
 }
+
+#[derive(Copy, Clone)]
 pub enum EditorCmd {
     Move(Direction),
     Resize(Size),
     Insert(char),
+    Tab,
     Enter,
     DeleteLeft,
     DeleteRight,
@@ -104,7 +108,7 @@ impl TryFrom<Event> for EditorCmd {
                     KeyCode::Tab,
                     _
                 ) => {
-                    return Ok(Self::Insert('\t'));
+                    return Ok(Self::Tab);
                 },
                 (
                     KeyCode::Enter,
