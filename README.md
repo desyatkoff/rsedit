@@ -12,6 +12,20 @@
 
 **Rsedit** (stands for **R**u**s**t **edit**or) is an app to quickly edit your text files with text-based user interface, you can launch it right in terminal, even through SSH connection!
 
+## Features
+
+* Basic interaction with text
+    + Read
+    + Write
+* Keyboard shortcuts
+    + `Control` + `S` -> Save
+    + `Control` + `Q` -> Quit
+* Status bar
+    + File name
+    + Modification indicator
+    + Cursor position
+    + Total lines count
+
 ## Installation
 
 1. **Clone the repository**
@@ -45,5 +59,5 @@ Or you can use relative path (if your file is near to your current location in t
 ```Shell
 $ rsedit file.txt
 ```
-Okay. But how to save all the changes? No problem, just `Control + S`
-How to quit this horrible thing? `Control + Q`
+Okay. But how to save all the changes? No problem, just `Control` + `S` \
+How to quit this horrible thing? `Control` + `Q`
