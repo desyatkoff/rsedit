@@ -10,7 +10,7 @@
 
 ## Description
 
-**Rsedit** (stands for **R**u**s**t **edit**or) is an app to quickly edit your text files with text-based user interface, you can launch it right in terminal, even through SSH connection!
+**Rsedit** (stands for **R**u**s**t **edit**or) is a great TUI tool to quickly edit your text files. You can launch it right in terminal, even through SSH connection!
 
 ## Features
 
@@ -29,6 +29,7 @@
     + Modification indicator
     + Cursor position
     + Total lines count
+* Dynamic hint bar
 
 ## Installation
 
