@@ -1,7 +1,10 @@
 mod buffer;
 mod line;
 
-use std::cmp::min;
+use std::{
+    cmp::min,
+    io::Error,
+};
 use super::{
     terminal::{
         Terminal,
@@ -14,6 +17,7 @@ use super::{
     },
     FileStatus,
     VERSION,
+    uielements::UIElement,
 };
 use buffer::Buffer;
 use line::Line;
@@ -24,35 +28,16 @@ pub struct Location {
     pub line_index: usize,
 }
 
+#[derive(Default)]
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
     size: Size,
-    margin_bottom: usize,
     text_location: Location,
     scroll_offset: Position,
 }
 
 impl View {
-    pub fn new(margin_bottom: usize) -> Self {
-        return Self {
-            buffer: Buffer::default(),
-            needs_redraw: true,
-            size: Size {
-                width: Terminal::size()
-                    .unwrap_or_default()
-                    .width,
-                height: Terminal::size()
-                    .unwrap_or_default()
-                    .height
-                    .saturating_sub(margin_bottom),
-            },
-            margin_bottom: margin_bottom,
-            text_location: Location::default(),
-            scroll_offset: Position::default(),
-        };
-    }
-
     pub fn get_current_status(&self) -> FileStatus {
         return FileStatus {
             lines_count: self.buffer.height(),
@@ -65,50 +50,8 @@ impl View {
         };
     }
 
-    pub fn render(&mut self) {
-        if !self.needs_redraw || self.size.height == 0 {
-            return;
-        }
-
-        let Size {
-            width,
-            height
-        } = self.size;
-
-        if width == 0 || height == 0 {
-            return;
-        }
-
-        let vertical_center = height / 3;
-        let top = self.scroll_offset.row;
-
-        for current_line in 0..height {
-            if let Some(line) = self.buffer.lines.get(current_line.saturating_add(top)) {
-                let left = self.scroll_offset.column;
-                let right = self.scroll_offset.column.saturating_add(width);
-
-                Self::render_line(
-                    current_line,
-                    &line.get_visible_graphemes(left..right)
-                );
-            } else if current_line == vertical_center && self.buffer.is_empty() {
-                Self::render_line(
-                    current_line,
-                    &Self::render_welcome(width)
-                );
-            } else {
-                Self::render_line(current_line, "~");
-            }
-        }
-
-        self.needs_redraw = false;
-    }
-
     pub fn handle_command(&mut self, command: EditorCmd) {
         match command {
-            EditorCmd::Resize(size) => {
-                self.resize(size);
-            },
             EditorCmd::Move(direction) => {
                 self.move_text_location(&direction);
             },
@@ -130,14 +73,14 @@ impl View {
             EditorCmd::Save => {
                 self.save();
             },
-            EditorCmd::Quit => {},
+            EditorCmd::Quit | EditorCmd::Resize(_) => {},
         }
     }
 
     pub fn load(&mut self, file: &str) {
         if let Ok(buffer) = Buffer::load(file) {
             self.buffer = buffer;
-            self.needs_redraw = true;
+            self.set_needs_redraw(true);
         }
     }
 
@@ -243,17 +186,6 @@ impl View {
         self.text_location.line_index = min(self.text_location.line_index, self.buffer.height());
     }
 
-    fn resize(&mut self, new_size: Size) {
-        self.size = Size {
-            width: new_size.width,
-            height: new_size
-                .height
-                .saturating_sub(self.margin_bottom),
-        };
-        self.scroll_text_location_into_view();
-        self.needs_redraw = true;
-    }
-
     fn scroll_horizontally(&mut self, to_where: usize) {
         let Size {
             width,
@@ -271,7 +203,9 @@ impl View {
             false
         };
 
-        self.needs_redraw = self.needs_redraw || offset_changed;
+        if offset_changed {
+            self.set_needs_redraw(true);
+        }
     }
 
     fn scroll_vertically(&mut self, to_where: usize) {
@@ -291,7 +225,9 @@ impl View {
             false
         };
 
-        self.needs_redraw = self.needs_redraw || offset_changed;
+        if offset_changed {
+            self.set_needs_redraw(true);
+        }
     }
 
     fn scroll_text_location_into_view(&mut self) {
@@ -320,7 +256,7 @@ impl View {
             self.move_text_location(&Direction::Right);
         }
 
-        self.needs_redraw = true;
+        self.set_needs_redraw(true);
     }
 
     fn insert_tab(&mut self) {
@@ -333,7 +269,7 @@ impl View {
         self.buffer.insert_line(self.text_location);
         self.move_text_location(&Direction::Right);
 
-        self.needs_redraw = true;
+        self.set_needs_redraw(true);
     }
 
     fn delete_left(&mut self) {
@@ -341,18 +277,18 @@ impl View {
             self.move_text_location(&Direction::Left);
             self.buffer.remove_char(self.text_location);
 
-            self.needs_redraw = true;
+            self.set_needs_redraw(true);
         }
     }
 
     fn delete_right(&mut self) {
         self.buffer.remove_char(self.text_location);
 
-        self.needs_redraw = true;
+        self.set_needs_redraw(true);
     }
 
-    fn render_line(line_number: usize, data: &str) {
-        Terminal::print_line(line_number, data);
+    fn render_line(line_number: usize, data: &str) -> Result<(), Error> {
+        return Terminal::print_line(line_number, data);
     }
 
     fn render_welcome(width: usize) -> String {
@@ -377,3 +313,56 @@ impl View {
     }
 }
 
+impl UIElement for View {
+    fn set_needs_redraw(&mut self, value: bool) {
+        self.needs_redraw = value;
+    }
+
+    fn get_needs_redraw(&self) -> bool {
+        return self.needs_redraw;
+    }
+
+    fn set_size(&mut self, new_size: Size) {
+        self.size = new_size;
+    }
+
+    // fn get_size(&mut self) -> Size {
+    //     return self.size;
+    // }
+
+    fn draw(&mut self, row: usize) -> Result<(), Error> {
+        let Size {
+            width,
+            height
+        } = self.size;
+        let final_row = row.saturating_add(height);
+
+        for current_line in row..final_row {
+            let line_index = current_line
+                .saturating_sub(row)
+                .saturating_add(self.scroll_offset.row);
+
+            if let Some(line) = self.buffer.lines.get(line_index) {
+                let left = self.scroll_offset.column;
+                let right = self.scroll_offset.column.saturating_add(width);
+
+                Self::render_line(
+                    current_line,
+                    &line.get_visible_graphemes(left..right)
+                )?;
+            } else if current_line == height / 3 && self.buffer.is_empty() {
+                Self::render_line(
+                    current_line,
+                    &Self::render_welcome(width)
+                )?;
+            } else {
+                Self::render_line(
+                    current_line,
+                    "~"
+                )?;
+            }
+        }
+
+        return Ok(());
+    }
+}
