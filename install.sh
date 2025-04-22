@@ -12,17 +12,23 @@
 #                                      #
 ########################################
 
-# 1. Compile the Rust project
+# 1. Clean files (in case if already installed)
+
+cargo clean
+
+sudo rm -v /bin/rsedit
+
+# 2. Compile the Rust project
 
 cargo build --release
 
-# 2. Copy binary to the `/bin/` directory
+# 3. Copy binary to the `/bin/` directory
 
 sudo cp -v \
     ./target/release/rsedit \
     /bin/
 
-# 3. After installation
+# 4. After installation
 
 rsedit example.txt    # `example.txt` file is included into the repository (just if you want to quickly test Rsedit)
 
