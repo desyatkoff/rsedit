@@ -10,23 +10,30 @@
 
 ## Description
 
-**Rsedit** (stands for **R**u**s**t **edit**or) is an app to quickly edit your text files with text-based user interface, you can launch it right in terminal, even through SSH connection!
+**Rsedit** (stands for **R**u**s**t **edit**or) is a great TUI tool to quickly edit your text files. You can launch it right in terminal, even through SSH connection!
 
 ## Features
 
 * Basic interaction with text
     + Read
     + Write
+    + Copy
+    + Paste
 * Keyboard shortcuts
     + `Control` + `S` -> Save
     + `Control` + `Q` -> Quit
-* Status bar
+    + `Control` + `Shift` + `C` -> Copy
+    + `Control` + `Shift` + `V` -> Paste
+* Dynamic status bar
     + File name
     + Modification indicator
     + Cursor position
     + Total lines count
+* Dynamic hint bar
 
 ## Installation
+
+### Easy method
 
 1. **Clone the repository**
     ```Shell
@@ -34,7 +41,22 @@
     ```
 2. **Go to the repository directory**
     ```Shell
-    $ cd rsedit/
+    $ cd ./rsedit/
+    ```
+3. **Launch `install.sh` script**
+    ```Shell
+    $ sh ./install.sh
+    ```
+
+### Normal  method
+
+1. **Clone the repository**
+    ```Shell
+    $ git clone https://github.com/desyatkoff/rsedit.git
+    ```
+2. **Go to the repository directory**
+    ```Shell
+    $ cd ./rsedit/
     ```
 3. **Compile the Rust project**
     ```Shell
@@ -42,7 +64,11 @@
     ```
 4. **Copy Rsedit binary to the `/bin/` directory**
     ```Shell
-    $ cp ./target/release/rsedit /bin/
+    $ sudo cp ./target/release/rsedit /bin/
+    ```
+5. **Test Rsedit using `example.txt` that included to the repository**
+    ```Shell
+    $ rsedit example.txt
     ```
 
 ## Usage
