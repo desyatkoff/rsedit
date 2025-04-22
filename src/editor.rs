@@ -133,8 +133,10 @@ impl Editor {
     pub fn update_status(&mut self) {
         let status = self.view.get_current_status();
         let title = format!(
-            "Rsedit :: {:?}",
-            status.file_name,
+            "Rsedit :: {}",
+            status.file_name
+                .as_deref()
+                .unwrap(),
         );
 
         self.statusbar.update_status(status);
