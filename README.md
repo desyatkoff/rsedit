@@ -32,7 +32,7 @@
 
 ## Installation
 
-### East method
+### Easy method
 
 1. **Clone the repository**
     ```Shell
