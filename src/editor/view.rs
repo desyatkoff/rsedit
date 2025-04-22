@@ -12,8 +12,8 @@ use super::{
         Position,
     },
     commands::{
-        Direction,
-        EditorCmd,
+        Edit,
+        Move,
     },
     FileStatus,
     VERSION,
@@ -50,42 +50,70 @@ impl View {
         };
     }
 
-    pub fn handle_command(&mut self, command: EditorCmd) {
+    pub fn handle_edit_command(&mut self, command: Edit) {
         match command {
-            EditorCmd::Move(direction) => {
-                self.move_text_location(&direction);
-            },
-            EditorCmd::Insert(character) => {
+            Edit::InsertCharacter(character) => {
                 self.insert_char(character);
             },
-            EditorCmd::Tab => {
+            Edit::InsertTab => {
                 self.insert_tab();
-            },
-            EditorCmd::Enter => {
+            }
+            Edit::InsertLine => {
                 self.insert_line();
             },
-            EditorCmd::DeleteLeft => {
-                self.delete_left();
+            Edit::DeletePrevious => {
+                self.delete_previous();
             },
-            EditorCmd::DeleteRight => {
-                self.delete_right();
+            Edit::DeleteNext => {
+                self.delete_next();
             },
-            EditorCmd::Save => {
-                self.save();
-            },
-            EditorCmd::Quit | EditorCmd::Resize(_) => {},
         }
     }
+    pub fn handle_move_command(&mut self, command: Move) {
+        let Size {
+            width: _,
+            height
+        } = self.size;
 
-    pub fn load(&mut self, file: &str) {
-        if let Ok(buffer) = Buffer::load(file) {
-            self.buffer = buffer;
-            self.set_needs_redraw(true);
+        match command {
+            Move::Up => {
+                self.move_up(1);
+            },
+            Move::Down => {
+                self.move_down(1);
+            },
+            Move::Left => {
+                self.move_left();
+            },
+            Move::Right => {
+                self.move_right();
+            },
+            Move::PageUp => {
+                self.move_up(height.saturating_sub(1));
+            },
+            Move::PageDown => {
+                self.move_down(height.saturating_sub(1));
+            },
+            Move::StartOfLine => {
+                self.move_to_start_of_line();
+            },
+            Move::EndOfLine => {
+                self.move_to_end_of_line();
+            },
         }
+
+        self.scroll_text_location_into_view();
     }
 
-    pub fn save(&mut self) {
-        self.buffer.save();
+    pub fn load(&mut self, file: &str) -> Result<(), Error> {
+        self.buffer = Buffer::load(file)?;
+        self.set_needs_redraw(true);
+
+        return Ok(());
+    }
+
+    pub fn save(&mut self) -> Result<(), Error> {
+        return self.buffer.save();
     }
 
     pub fn get_cursor_position(&self) -> Position {
@@ -102,42 +130,6 @@ impl View {
             column,
             row
         };
-    }
-
-    fn move_text_location(&mut self, direction: &Direction) {
-        let Size {
-            width: _,
-            height
-        } = self.size;
-
-        match direction {
-            Direction::Up => {
-                self.move_up(1);
-            },
-            Direction::Down => {
-                self.move_down(1);
-            },
-            Direction::Left => {
-                self.move_left();
-            },
-            Direction::Right => {
-                self.move_right();
-            },
-            Direction::PageUp => {
-                self.move_up(height.saturating_sub(1));
-            },
-            Direction::PageDown => {
-                self.move_down(height.saturating_sub(1));
-            },
-            Direction::Home => {
-                self.move_to_start_of_line();
-            },
-            Direction::End => {
-                self.move_to_end_of_line();
-            },
-        }
-
-        self.scroll_text_location_into_view();
     }
 
     fn move_up(&mut self, step: usize) {
@@ -253,7 +245,7 @@ impl View {
         let grapheme_delta = new_length.saturating_sub(old_length);
 
         if grapheme_delta > 0 {
-            self.move_text_location(&Direction::Right);
+            self.handle_move_command(Move::Right);
         }
 
         self.set_needs_redraw(true);
@@ -267,21 +259,21 @@ impl View {
 
     fn insert_line(&mut self) {
         self.buffer.insert_line(self.text_location);
-        self.move_text_location(&Direction::Right);
+        self.handle_move_command(Move::Right);
 
         self.set_needs_redraw(true);
     }
 
-    fn delete_left(&mut self) {
+    fn delete_previous(&mut self) {
         if self.text_location.line_index != 0 || self.text_location.grapheme_index != 0 {
-            self.move_text_location(&Direction::Left);
+            self.handle_move_command(Move::Left);
             self.buffer.remove_char(self.text_location);
 
             self.set_needs_redraw(true);
         }
     }
 
-    fn delete_right(&mut self) {
+    fn delete_next(&mut self) {
         self.buffer.remove_char(self.text_location);
 
         self.set_needs_redraw(true);

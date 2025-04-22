@@ -1,151 +1,225 @@
 use std::convert::TryFrom;
 use crossterm::event::{
-    Event,
-    KeyCode,
+    KeyCode::{
+        Char,
+        Backspace,
+        Delete,
+        Left,
+        Right,
+        Up,
+        Down,
+        Home,
+        End,
+        Tab,
+        Enter,
+        PageUp,
+        PageDown,
+    },
     KeyEvent,
-    KeyModifiers
+    KeyModifiers,
+    Event,
 };
 use super::terminal::Size;
 
-#[derive(Copy, Clone)]
-pub enum Direction {
+#[derive(Clone, Copy)]
+pub enum Move {
     PageUp,
     PageDown,
-    Home,
-    End,
+    StartOfLine,
+    EndOfLine,
     Up,
     Left,
     Right,
     Down,
 }
 
-#[derive(Copy, Clone)]
-pub enum EditorCmd {
-    Move(Direction),
-    Resize(Size),
-    Insert(char),
-    Tab,
-    Enter,
-    DeleteLeft,
-    DeleteRight,
-    Save,
-    Quit,
-}
-
-impl TryFrom<Event> for EditorCmd {
+impl TryFrom<KeyEvent> for Move {
     type Error = String;
 
-    fn try_from(event: Event) -> Result<Self, Self::Error> {
-        match event {
-            Event::Key(KeyEvent {code, modifiers, ..} ) => match (code, modifiers) {
-                (
-                    KeyCode::Char('s'),
-                    KeyModifiers::CONTROL
-                ) => {
-                    return Ok(Self::Save);
+    fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {
+        let KeyEvent {
+            code,
+            modifiers,
+            ..
+        } = event;
+
+        if modifiers == KeyModifiers::NONE {
+            match code {
+                Up => {
+                    return Ok(Self::Up);
                 },
-                (
-                    KeyCode::Char('q'),
-                    KeyModifiers::CONTROL
-                ) => {
-                    return Ok(Self::Quit);
+                Down => {
+                    return Ok(Self::Down);
                 },
-                (
-                    KeyCode::Up,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::Up));
+                Left => {
+                    return Ok(Self::Left);
                 },
-                (
-                    KeyCode::Down,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::Down));
+                Right => {
+                    return Ok(Self::Right);
                 },
-                (
-                    KeyCode::Left,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::Left));
+                PageDown => {
+                    return Ok(Self::PageDown);
                 },
-                (
-                    KeyCode::Right,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::Right));
+                PageUp => {
+                    return Ok(Self::PageUp);
                 },
-                (
-                    KeyCode::PageDown,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::PageDown));
+                Home => {
+                    return Ok(Self::StartOfLine);
                 },
-                (
-                    KeyCode::PageUp,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::PageUp));
-                },
-                (
-                    KeyCode::Home,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::Home));
-                },
-                (
-                    KeyCode::End,
-                    _
-                ) => {
-                    return Ok(Self::Move(Direction::End));
-                },
-                (
-                    KeyCode::Char(c),
-                    _
-                ) => {
-                    return Ok(Self::Insert(c));
-                },
-                (
-                    KeyCode::Tab,
-                    _
-                ) => {
-                    return Ok(Self::Tab);
-                },
-                (
-                    KeyCode::Enter,
-                    _
-                ) => {
-                    return Ok(Self::Enter);
-                },
-                (
-                    KeyCode::Backspace,
-                    _
-                ) => {
-                    return Ok(Self::DeleteLeft);
-                },
-                (
-                    KeyCode::Delete,
-                    _,
-                ) => {
-                    return Ok(Self::DeleteRight);
+                End => {
+                    return Ok(Self::EndOfLine);
                 },
                 _ => {
-                    return Err(String::from(""));
+                    return Err(String::new());
                 },
-            },
-            Event::Resize(width_u16, height_u16) => {
+            }
+        } else {
+            return Err(String::new());
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Edit {
+    InsertCharacter(char),
+    InsertTab,
+    InsertLine,
+    DeletePrevious,
+    DeleteNext,
+}
+
+impl TryFrom<KeyEvent> for Edit {
+    type Error = String;
+
+    fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {
+        match (event.code, event.modifiers) {
+            (
+                Char(character),
+                KeyModifiers::NONE | KeyModifiers::SHIFT
+            ) => {
                 return Ok(
-                    Self::Resize(
-                        Size {
-                            width: width_u16 as usize,
-                            height: height_u16 as usize
-                        }
-                    )
+                    Self::InsertCharacter(character)
+                );
+            },
+            (
+                Tab,
+                KeyModifiers::NONE
+            ) => {
+                return Ok(
+                    Self::InsertTab
+                );
+            },
+            (
+                Enter,
+                KeyModifiers::NONE
+            ) => {
+                return Ok(
+                    Self::InsertLine
+                );
+            },
+            (
+                Backspace,
+                KeyModifiers::NONE
+            ) => {
+                return Ok(
+                    Self::DeletePrevious
+                );
+            },
+            (
+                Delete,
+                KeyModifiers::NONE
+            ) => {
+                return Ok(
+                    Self::DeleteNext
                 );
             },
             _ => {
-                return Err(String::from(""));
+                return Err(String::new());
             },
         }
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum System {
+    Save,
+    Resize(Size),
+    Quit,
+}
+
+impl TryFrom<KeyEvent> for System {
+    type Error = String;
+
+    fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {
+        let KeyEvent {
+            code,
+            modifiers,
+            ..
+        } = event;
+
+        if modifiers == KeyModifiers::CONTROL {
+            match code {
+                Char('q') => {
+                    return Ok(
+                        Self::Quit
+                    );
+                },
+                Char('s') => {
+                    return Ok(
+                        Self::Save
+                    );
+                },
+                _ => {
+                    return Err(String::new());
+                },
+            }
+        } else {
+            return Err(String::new());
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Command {
+    Move(Move),
+    Edit(Edit),
+    System(System),
+}
+
+impl TryFrom<Event> for Command {
+    type Error = String;
+
+    fn try_from(event: Event) -> Result<Self, Self::Error> {
+        match event {
+            Event::Key(key_event) => {
+                return Edit::try_from(key_event)
+                    .map(
+                        Command::Edit
+                    )
+                    .or_else(
+                        |_| Move::try_from(key_event)
+                            .map(Command::Move)
+                    )
+                    .or_else(
+                        |_| System::try_from(key_event)
+                        .map(Command::System)
+                    );
+            },
+            Event::Resize(width_u16, height_u16) => {
+                return Ok(
+                    Self::System(
+                        System::Resize(
+                            Size {
+                                width: width_u16 as usize,
+                                height: height_u16 as usize,
+                            }
+                        )
+                    )
+                );
+            },
+            _ => {
+                return Err(String::new());
+            }
+        }
+    }
+}

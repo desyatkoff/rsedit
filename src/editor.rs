@@ -26,7 +26,19 @@ use terminal::{
     Size,
 };
 use view::View;
-use commands::EditorCmd;
+use commands::{
+    Command,
+    Command::{
+        Edit,
+        Move,
+        System,
+    },
+    System::{
+        Quit,
+        Resize,
+        Save,
+    },
+};
 use statusbar::StatusBar;
 use filestatus::FileStatus;
 use hintbar::HintBar;
@@ -66,19 +78,17 @@ impl Editor {
         editor.resize(
             Terminal::size().unwrap_or_default()
         );
+        editor.update_hint("[ CONTROL + S -> SAVE ] [ CONTROL + Q -> QUIT ]");
 
         let args: Vec<String> = env::args().collect();
 
         if let Some(file) = args.get(1) {
-            editor.view.load(file);
+            if editor.view.load(file).is_err() {
+                editor.update_hint("[ ERROR OPENING FILE. YOUR CHANGES WILL NOT BE SAVED ]")
+            }
         }
 
         editor.update_status();
-        editor.update_hint(
-            String::from(
-                "[ CONTROL + S -> SAVE ] [ CONTROL + Q -> QUIT ]"
-            )
-        );
 
         return Ok(editor);
     }
@@ -116,10 +126,7 @@ impl Editor {
             ) => {
                 kind == &KeyEventKind::Press
             },
-            Event::Resize(
-                _,
-                _
-            ) => {
+            Event::Resize(_, _) => {
                 true
             },
             _ => {
@@ -128,25 +135,54 @@ impl Editor {
         };
 
         if should_process {
-            match EditorCmd::try_from(event) {
-                Ok(cmd) => {
-                    if matches!(cmd, EditorCmd::Quit) {
-                        self.should_quit = true;
-                    } else if let EditorCmd::Resize(size) = cmd {
-                        self.resize(size);
-                    } else {
-                        self.view.handle_command(cmd);
-                    }
-                },
-                Err(_error) => {},
+            if let Ok(command) = Command::try_from(event) {
+                self.process_command(command);
             }
+        }
+    }
+
+    fn process_command(&mut self, command: Command) {
+        match command {
+            System(Quit) => {
+                return self.handle_quit();
+            },
+            System(Resize(size)) => {
+                return self.resize(size);
+            },
+            System(Save) => {
+                return self.handle_save();
+            },
+            Edit(edit_cmd) => {
+                return self.view.handle_edit_command(edit_cmd);
+            },
+            Move(move_cmd) => {
+                return self.view.handle_move_command(move_cmd);
+            }
+        }
+    }
+
+    fn handle_quit(&mut self) {
+        if !self.view.get_current_status().modified ||
+            self.view.get_current_status().file_name.as_deref().unwrap() == "UNTITLED" {
+            self.hintbar.update_hint("[ QUITTING ]");
+            self.should_quit = true;
+        } else if self.view.get_current_status().modified {
+            self.hintbar.update_hint("[ THIS FILE HAS UNSAVED CHANGES ]");
+        }
+    }
+
+    fn handle_save(&mut self) {
+        if self.view.save().is_ok() {
+            self.hintbar.update_hint("[ SUCCESSFULLY SAVED THIS FILE ]");
+        } else {
+            self.hintbar.update_hint("[ ERROR SAVING THIS FILE ]");
         }
     }
 
     pub fn update_status(&mut self) {
         let status = self.view.get_current_status();
         let title = format!(
-            "Rsedit :: {}",
+            "[ RSEDIT ] :: [ {} ]",
             status.file_name
                 .as_deref()
                 .unwrap(),
@@ -163,7 +199,7 @@ impl Editor {
         }
     }
 
-    pub fn update_hint(&mut self, hint: String) {
+    pub fn update_hint(&mut self, hint: &str) {
         self.hintbar.update_hint(hint);
     }
 

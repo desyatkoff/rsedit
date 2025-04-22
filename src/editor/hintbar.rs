@@ -1,5 +1,4 @@
 use std::io::Error;
-
 use super::{
     terminal::{
         Terminal,
@@ -8,24 +7,35 @@ use super::{
     uielements::UIElement,
 };
 
+struct Hint {
+    text: String,
+}
+
+impl Default for Hint {
+    fn default() -> Self {
+        return Self {
+            text: String::from("[ CONTROL + S -> SAVE ] [ CONTROL + Q -> QUIT ]"),
+        };
+    }
+}
+
 #[derive(Default)]
 pub struct HintBar {
-    current_hint: String,
+    current_hint: Hint,
     needs_redraw: bool,
 }
 
 impl HintBar {
-    pub fn update_hint(&mut self, new_hint: String) {
-        if new_hint != self.current_hint {
-            self.current_hint = String::from(
+    pub fn update_hint(&mut self, new_hint: &str) {
+        self.current_hint = Hint {
+            text: String::from(
                 format!(
                     "[ HINT ] :: {}",
-                    new_hint
+                    &new_hint
                 )
-            );
+            ),        };
 
-            self.needs_redraw = true;
-        }
+        self.set_needs_redraw(true);
     }
 }
 
@@ -49,7 +59,7 @@ impl UIElement for HintBar {
     fn draw(&mut self, row: usize) -> Result<(), Error> {
         return Terminal::print_line(
             row,
-            &self.current_hint
+            &self.current_hint.text.clone()
         );
     }
 }
