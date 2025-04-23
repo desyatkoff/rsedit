@@ -1,10 +1,8 @@
 use std::io::Error;
 use super::{
-    terminal::{
-        Terminal,
-        Size,
-    },
-    uielements::UIElement,
+    Terminal,
+    Size,
+    UIElement,
 };
 
 struct Hint {
@@ -14,7 +12,7 @@ struct Hint {
 impl Default for Hint {
     fn default() -> Self {
         return Self {
-            text: String::from("[ CONTROL + S -> SAVE ] [ CONTROL + Q -> QUIT ]"),
+            text: String::from("[ Control + S -> Save ] [ Control + Q -> Quit ]"),
         };
     }
 }
@@ -33,7 +31,8 @@ impl HintBar {
                     "[ HINT ] :: {}",
                     &new_hint
                 )
-            ),        };
+            ),
+        };
 
         self.set_needs_redraw(true);
     }
@@ -51,10 +50,6 @@ impl UIElement for HintBar {
     fn set_size(&mut self, new_size: Size) {
         // self.size = new_size;
     }
-
-    // fn get_size(&mut self) {
-    //     return self.size;
-    // }
 
     fn draw(&mut self, row: usize) -> Result<(), Error> {
         return Terminal::print_line(

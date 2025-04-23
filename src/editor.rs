@@ -3,9 +3,12 @@ mod view;
 mod commands;
 mod statusbar;
 mod filestatus;
-mod fileinfo;
 mod hintbar;
 mod uielements;
+mod commandbar;
+mod line;
+mod position;
+mod size;
 
 use std::{
     io::Error,
@@ -21,10 +24,7 @@ use crossterm::event::{
     KeyEvent,
     KeyEventKind,
 };
-use terminal::{
-    Terminal,
-    Size,
-};
+use terminal::Terminal;
 use view::View;
 use commands::{
     Command,
@@ -37,14 +37,20 @@ use commands::{
         Quit,
         Resize,
         Save,
+        Dismiss,
     },
+    Edit::InsertLine,
 };
 use statusbar::StatusBar;
 use filestatus::FileStatus;
 use hintbar::HintBar;
+use commandbar::CommandBar;
 use uielements::{
     UIElement,
 };
+use line::Line;
+use position::Position;
+use size::Size;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -54,6 +60,7 @@ pub struct Editor {
     view: View,
     statusbar: StatusBar,
     hintbar: HintBar,
+    commandbar: Option<CommandBar>,
     title: String,
     terminal_size: Size,
 }
@@ -78,13 +85,13 @@ impl Editor {
         editor.resize(
             Terminal::size().unwrap_or_default()
         );
-        editor.update_hint("[ CONTROL + S -> SAVE ] [ CONTROL + Q -> QUIT ]");
+        editor.update_hint("[ Control + S -> Save ] [ Control + Q -> Quit ]");
 
         let args: Vec<String> = env::args().collect();
 
         if let Some(file) = args.get(1) {
             if editor.view.load(file).is_err() {
-                editor.update_hint("[ ERROR OPENING FILE. YOUR CHANGES WILL NOT BE SAVED ]")
+                editor.update_hint("[ Error opening the file ]")
             }
         }
 
@@ -144,45 +151,106 @@ impl Editor {
     fn process_command(&mut self, command: Command) {
         match command {
             System(Quit) => {
-                return self.handle_quit();
+                if self.commandbar.is_none() {
+                    self.handle_quit();
+                }
             },
             System(Resize(size)) => {
-                return self.resize(size);
+                self.resize(size);
             },
             System(Save) => {
-                return self.handle_save();
+                if self.commandbar.is_none() {
+                    self.handle_save();
+                }
+            },
+            System(Dismiss) => {
+                if self.commandbar.is_some() {
+                    self.hide_command_prompt();
+                    self.hintbar.update_hint("[ Action cancelled ]");
+                }
             },
             Edit(edit_cmd) => {
-                return self.view.handle_edit_command(edit_cmd);
+                if let Some(cmdbar) = &mut self.commandbar {
+                    if matches!(edit_cmd, InsertLine) {
+                        let file_name = cmdbar.get_value();
+
+                        self.hide_command_prompt();
+
+                        self.save_file(
+                            Some(&file_name)
+                        );
+                    } else {
+                        cmdbar.handle_edit_command(edit_cmd);
+                    }
+                } else {
+                    self.view.handle_edit_command(edit_cmd);
+                }
             },
             Move(move_cmd) => {
-                return self.view.handle_move_command(move_cmd);
+                if self.commandbar.is_none() {
+                    self.view.handle_move_command(move_cmd);
+                }
             }
         }
+    }
+
+    fn show_command_prompt(&mut self) {
+        let mut cmdbar = CommandBar::default();
+
+        cmdbar.set_prompt("[ COMMAND ] :: Save the file as ");
+        cmdbar.resize(
+            Size {
+                width: self.terminal_size.width,
+                height: 1,
+            }
+        );
+        cmdbar.set_needs_redraw(true);
+
+        self.commandbar = Some(cmdbar);
+    }
+
+    fn hide_command_prompt(&mut self) {
+        self.commandbar = None;
+
+        self.hintbar.set_needs_redraw(true);
     }
 
     fn handle_quit(&mut self) {
         if !self.view.get_current_status().modified ||
             self.view.get_current_status().file_name.as_deref().unwrap() == "UNTITLED" {
-            self.hintbar.update_hint("[ QUITTING ]");
+            self.hintbar.update_hint("[ Quitting ]");
             self.should_quit = true;
         } else if self.view.get_current_status().modified {
-            self.hintbar.update_hint("[ THIS FILE HAS UNSAVED CHANGES ]");
+            self.hintbar.update_hint("[ Error quitting. The file has unsaved changes ]");
         }
     }
 
     fn handle_save(&mut self) {
-        if self.view.save().is_ok() {
-            self.hintbar.update_hint("[ SUCCESSFULLY SAVED THIS FILE ]");
+        if self.view.is_file_loaded() {
+            self.save_file(None);
         } else {
-            self.hintbar.update_hint("[ ERROR SAVING THIS FILE ]");
+            self.show_command_prompt();
+        }
+    }
+
+    fn save_file(&mut self, file_name: Option<&str>) {
+        let result = if let Some(name) = file_name {
+            self.view.save_as(name)
+        } else {
+            self.view.save()
+        };
+
+        if result.is_ok() {
+            self.hintbar.update_hint("[ Successfully saved the file ]");
+        } else {
+            self.hintbar.update_hint("[ Error saving the file ]");
         }
     }
 
     pub fn update_status(&mut self) {
         let status = self.view.get_current_status();
         let title = format!(
-            "[ RSEDIT ] :: [ {} ]",
+            "Rsedit - {}",
             status.file_name
                 .as_deref()
                 .unwrap(),
@@ -213,18 +281,33 @@ impl Editor {
         }
 
         if self.terminal_size.height > 1 {
-            self.hintbar.render(
-                self.terminal_size.height.saturating_sub(1)
-            );
+            if let Some(cmdbar) = &mut self.commandbar {
+                cmdbar.render(
+                    self.terminal_size.height.saturating_sub(1)
+                );
+            } else {
+                self.hintbar.render(
+                    self.terminal_size.height.saturating_sub(1)
+                );
+            }
         }
 
         if self.terminal_size.height > 2 {
             self.view.render(0);
         }
 
-        Terminal::move_cursor_to(
-            self.view.get_cursor_position()
-        );
+        let new_cursor_position;
+
+        if let Some(cmdbar) = &self.commandbar {
+            new_cursor_position = Position {
+                column: cmdbar.get_cursor_column(),
+                row: self.terminal_size.height.saturating_sub(1),
+            };
+        } else {
+            new_cursor_position = self.view.get_cursor_position();
+        }
+
+        Terminal::move_cursor_to(new_cursor_position);
         Terminal::show_cursor();
         Terminal::execute();
     }
@@ -249,6 +332,14 @@ impl Editor {
                 height: 1,
             }
         );
+
+        if let Some(cmdbar) = &mut self.commandbar {
+            cmdbar.resize(
+                Size {
+                    width: new_size.width,
+                    height: 1,
+                }
+            );
+        }
     }
 }
-

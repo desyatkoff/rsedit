@@ -1,26 +1,25 @@
 mod buffer;
-mod line;
+mod fileinfo;
 
 use std::{
     cmp::min,
     io::Error,
 };
 use super::{
-    terminal::{
-        Terminal,
-        Size,
-        Position,
-    },
     commands::{
         Edit,
         Move,
     },
+    Terminal,
+    Size,
+    Position,
     FileStatus,
     VERSION,
-    uielements::UIElement,
+    UIElement,
+    Line,
 };
 use buffer::Buffer;
-use line::Line;
+use fileinfo::FileInfo;
 
 #[derive(Default, Copy, Clone)]
 pub struct Location {
@@ -69,6 +68,7 @@ impl View {
             },
         }
     }
+
     pub fn handle_move_command(&mut self, command: Move) {
         let Size {
             width: _,
@@ -112,8 +112,16 @@ impl View {
         return Ok(());
     }
 
+    pub const fn is_file_loaded(&self) -> bool {
+        return self.buffer.is_file_loaded();
+    }
+
     pub fn save(&mut self) -> Result<(), Error> {
         return self.buffer.save();
+    }
+
+    pub fn save_as(&mut self, file_name: &str) -> Result<(), Error> {
+        return self.buffer.save_as(file_name);
     }
 
     pub fn get_cursor_position(&self) -> Position {
@@ -290,7 +298,7 @@ impl View {
 
         let remaining_width = width.saturating_sub(1);
 
-        let welcome_msg = format!("WELCOME TO THE RSEDIT V{VERSION}!");
+        let welcome_msg = format!("Welcome to Rsedit v{VERSION}!");
         let length = welcome_msg.len();
 
         if remaining_width < length {
