@@ -9,20 +9,20 @@ pub struct FileStatus {
 impl FileStatus {
     pub fn modified_indicator_to_string(&self) -> String {
         if self.modified {
-            return String::from("MODIFIED");
+            return String::from("Modified");
         } else {
-            return String::from("NOT MODIFIED");
+            return String::from("Not modified");
         }
     }
 
     pub fn lines_count_to_string(&self) -> String {
         if self.lines_count != 1 {
             return format!(
-                "{} LINES",
+                "{} lines",
                 self.lines_count
             );
         } else {
-            return String::from("1 LINE");
+            return String::from("1 line");
         }
     }
 
@@ -34,4 +34,3 @@ impl FileStatus {
         )
     }
 }
-

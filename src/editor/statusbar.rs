@@ -1,10 +1,8 @@
 use std::io::Error;
 use super::{
-    terminal::{
-        Terminal,
-        Size,
-    },
-    uielements::UIElement,
+    Terminal,
+    Size,
+    UIElement,
     FileStatus,
 };
 
@@ -37,10 +35,6 @@ impl UIElement for StatusBar {
     fn set_size(&mut self, new_size: Size) {
         self.size = new_size;
     }
-
-    // fn get_size(&mut self) -> Size {
-    //     return self.size;
-    // }
 
     fn draw(&mut self, row: usize) -> Result<(), Error> {
         let file_name = self.current_status.file_name.as_deref().unwrap();

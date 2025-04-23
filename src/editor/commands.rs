@@ -14,12 +14,13 @@ use crossterm::event::{
         Enter,
         PageUp,
         PageDown,
+        Esc
     },
     KeyEvent,
     KeyModifiers,
     Event,
 };
-use super::terminal::Size;
+use super::Size;
 
 #[derive(Clone, Copy)]
 pub enum Move {
@@ -145,6 +146,7 @@ pub enum System {
     Save,
     Resize(Size),
     Quit,
+    Dismiss,
 }
 
 impl TryFrom<KeyEvent> for System {
@@ -173,6 +175,10 @@ impl TryFrom<KeyEvent> for System {
                     return Err(String::new());
                 },
             }
+        } else if matches!(code, Esc) && modifiers == KeyModifiers::NONE {
+            return Ok(
+                Self::Dismiss
+            );
         } else {
             return Err(String::new());
         }

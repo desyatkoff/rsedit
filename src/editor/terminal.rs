@@ -28,6 +28,10 @@ use crossterm::{
     queue,
     Command,
 };
+use super::{
+    Position,
+    Size,
+};
 
 pub struct Terminal;
 
@@ -191,25 +195,3 @@ impl Terminal {
         return Ok(());
     }
 }
-
-#[derive(Default, Copy, Clone, Eq, PartialEq)]
-pub struct Size {
-    pub width: usize,
-    pub height: usize,
-}
-
-#[derive(Default, Copy, Clone)]
-pub struct Position {
-    pub column: usize,
-    pub row: usize,
-}
-
-impl Position {
-    pub const fn saturating_sub(self, other: Self) -> Self {
-        return Self {
-            column: self.column.saturating_sub(other.column),
-            row: self.row.saturating_sub(other.row),
-        };
-    }
-}
-

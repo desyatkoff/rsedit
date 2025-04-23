@@ -121,6 +121,13 @@ impl Line {
         self.fragments = Self::str_to_fragments(&result);
     }
 
+    pub fn append_char(&mut self, character: char) {
+        self.insert_char(
+            character,
+            self.grapheme_count()
+        );
+    }
+
     pub fn remove_char(&mut self, at_where: usize) {
         let mut result = String::new();
 
@@ -131,6 +138,10 @@ impl Line {
         }
 
         self.fragments = Self::str_to_fragments(&result);
+    }
+
+    pub fn remove_last_char(&mut self) {
+        self.remove_char(self.grapheme_count().saturating_sub(1));
     }
 
     pub fn append(&mut self, other: &Self) {
@@ -183,18 +194,24 @@ impl Line {
     }
 
     pub fn grapheme_count(&self) -> usize {
-        self.fragments.len()
+        return self.fragments.len();
     }
 
     pub fn width_until(&self, grapheme_index: usize) -> usize {
-        self.fragments
+        return self.fragments
             .iter()
             .take(grapheme_index)
-            .map(|fragment| match fragment.rendered_width {
-                GraphemeWidth::Half => 1,
-                GraphemeWidth::Full => 2,
-            })
-            .sum()
+            .map(
+                |fragment| match fragment.rendered_width {
+                    GraphemeWidth::Half => 1,
+                    GraphemeWidth::Full => 2,
+                }
+            )
+            .sum();
+    }
+
+    pub fn width(&self) -> usize {
+        return self.width_until(self.grapheme_count());
     }
 }
 
@@ -213,4 +230,3 @@ impl fmt::Display for Line {
         );
     }
 }
-

@@ -8,10 +8,10 @@ use std::{
         File,
     },
 };
-use crate::editor::fileinfo::FileInfo;
 use super::{
-    line::Line,
+    Line,
     Location,
+    FileInfo,
 };
 
 #[derive(Default)]
@@ -39,8 +39,8 @@ impl Buffer {
         );
     }
 
-    pub fn save(&mut self) -> Result<(), Error> {
-        if let Some(file_path) = &self.file_info.file_path {
+    fn save_file(&self, file_info: &FileInfo) -> Result<(), Error> {
+        if let Some(file_path) = &file_info.get_path() {
             let mut file = File::create(file_path)?;
 
             for line in &self.lines {
@@ -49,9 +49,24 @@ impl Buffer {
                     "{line}"
                 )?;
             }
-
-            self.modified = false;
         }
+
+        return Ok(());
+    }
+
+    pub fn save_as(&mut self, file_name: &str) -> Result<(), Error> {
+        let file_info = FileInfo::from(file_name);
+
+        self.save_file(&file_info)?;
+        self.file_info = file_info;
+        self.modified = false;
+
+        return Ok(());
+    }
+
+    pub fn save(&mut self) -> Result<(), Error> {
+        self.save_file(&self.file_info)?;
+        self.modified = false;
 
         return Ok(());
     }
@@ -115,8 +130,11 @@ impl Buffer {
         return self.lines.is_empty();
     }
 
+    pub const fn is_file_loaded(&self) -> bool {
+        return self.file_info.has_path();
+    }
+
     pub fn height(&self) -> usize {
         return self.lines.len();
     }
 }
-
