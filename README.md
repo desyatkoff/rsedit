@@ -30,6 +30,7 @@
     + Cursor position
     + Total lines count
 * Dynamic hint bar
+* Command bar
 
 ## Installation
 
@@ -85,5 +86,5 @@ Or you can use relative path (if your file is near to your current location in t
 ```Shell
 $ rsedit file.txt
 ```
-Okay. But how to save all the changes? No problem, just `Control` + `S` \
-How to quit this horrible thing? `Control` + `Q`
+
+If you forgot to create a file to edit with Rsedit, you still can `Control` + `S` and the command bar will appear asking you a wanted file name (simply a "save as" feature)
