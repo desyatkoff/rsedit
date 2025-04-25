@@ -126,6 +126,22 @@ impl Buffer {
         }
     }
 
+    pub fn search(&self, query: &str) -> Option<Location> {
+        for (line_index, line) in self.lines.iter().enumerate() {
+            if let Some(grapheme_index) = line.search(query) {
+                return Some(
+                    Location {
+                        grapheme_index,
+                        line_index
+                    }
+                );
+            }
+
+        }
+
+        return None;
+    }
+
     pub fn is_empty(&self) -> bool {
         return self.lines.is_empty();
     }

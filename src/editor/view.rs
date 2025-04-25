@@ -21,6 +21,10 @@ use super::{
 use buffer::Buffer;
 use fileinfo::FileInfo;
 
+struct SearchInfo {
+    previous_location: Location,
+}
+
 #[derive(Default, Copy, Clone)]
 pub struct Location {
     pub grapheme_index: usize,
@@ -34,6 +38,7 @@ pub struct View {
     size: Size,
     text_location: Location,
     scroll_offset: Position,
+    search_info: Option<SearchInfo>,
 }
 
 impl View {
@@ -285,6 +290,38 @@ impl View {
         self.buffer.remove_char(self.text_location);
 
         self.set_needs_redraw(true);
+    }
+
+    pub fn enter_search(&mut self) {
+        self.search_info = Some(
+            SearchInfo {
+                previous_location: self.text_location,
+            }
+        );
+    }
+
+    pub fn exit_search(&mut self) {
+        self.search_info = None;
+    }
+
+    pub fn dismiss_search(&mut self) {
+        if let Some(search_info) = &self.search_info {
+            self.text_location = search_info.previous_location;
+        }
+
+        self.search_info = None;
+        self.scroll_text_location_into_view();
+    }
+
+    pub fn search(&mut self, query: &str) {
+        if query.is_empty() {
+            return;
+        }
+
+        if let Some(location) = self.buffer.search(query) {
+            self.text_location = location;
+            self.scroll_text_location_into_view();
+        }
     }
 
     fn render_line(line_number: usize, data: &str) -> Result<(), Error> {
