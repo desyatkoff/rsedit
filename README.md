@@ -20,6 +20,9 @@
     + Copy
     + Paste
 * Keyboard shortcuts
+    + `Control` + `F` -> Search
+        - `Down` or `Right` -> Next
+        - `Up` or `Left` -> Previous
     + `Control` + `S` -> Save
     + `Control` + `Q` -> Quit
     + `Control` + `Shift` + `C` -> Copy
@@ -31,6 +34,10 @@
     + Total lines count
 * Dynamic hint bar
 * Command bar
+    + Search
+        - Next
+        - Previous
+    + Save as
 
 ## Installation
 

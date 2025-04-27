@@ -44,12 +44,18 @@ impl CommandBar {
         return min(max_width, self.size.width);
     }
 
+    pub fn clear_value(&mut self) {
+        self.value = Line::default();
+        self.set_needs_redraw(true);
+    }
+
     pub fn get_value(&self) -> String {
         return format!("{}", self.value);
     }
 
     pub fn set_prompt(&mut self, prompt: &str) {
         self.prompt = String::from(prompt);
+        self.set_needs_redraw(true);
     }
 }
 

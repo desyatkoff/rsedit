@@ -47,7 +47,7 @@ impl UIElement for HintBar {
         return self.needs_redraw;
     }
 
-    fn set_size(&mut self, new_size: Size) {
+    fn set_size(&mut self, _new_size: Size) {
         // self.size = new_size;
     }
 

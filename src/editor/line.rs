@@ -1,9 +1,15 @@
 use std::{
-    ops::Range,
+    ops::{
+        Range,
+        Deref,
+    },
     fmt,
 };
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
+
+type GraphemeIndex = usize;
+type ByteIndex = usize;
 
 #[derive(Copy, Clone)]
 enum GraphemeWidth {
@@ -24,31 +30,33 @@ impl GraphemeWidth {
     }
 }
 
+#[derive(Clone)]
 struct TextFragment {
     grapheme: String,
     rendered_width: GraphemeWidth,
     replacement: Option<char>,
+    start_byte_index: usize,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Line {
     fragments: Vec<TextFragment>,
+    string: String,
 }
 
 impl Line {
     pub fn from(s: &str) -> Self {
-        let fragments = Self::str_to_fragments(s);
-
         return Self {
-            fragments,
+            fragments: Self::str_to_fragments(s),
+            string: String::from(s),
         };
     }
 
     pub fn str_to_fragments(s: &str) -> Vec<TextFragment> {
-        let fragments = s
-            .graphemes(true)
-            .map(|grapheme| {
-                let (replacement, rendered_width) = Self::char_replacement(grapheme)
+        return s
+            .grapheme_indices(true)
+            .map(|(byte_index, grapheme)| {
+                let (replacement, rendered_width) = Self::get_char_replacement(grapheme)
                     .map_or_else(
                         || {
                             let unicode_width = grapheme.width();
@@ -66,14 +74,17 @@ impl Line {
                     grapheme: String::from(grapheme),
                     rendered_width,
                     replacement,
+                    start_byte_index: byte_index,
                 }
             }
         ).collect();
-
-        return fragments;
     }
 
-    fn char_replacement(s: &str) -> Option<char> {
+    fn rerender_fragments(&mut self) {
+        self.fragments = Self::str_to_fragments(&self.string);
+    }
+
+    fn get_char_replacement(s: &str) -> Option<char> {
         let width = s.width();
 
         match s {
@@ -98,27 +109,19 @@ impl Line {
                 return Some('·');
             }
             _ => {
-                return None
+                return None;
             },
         }
     }
 
-    pub fn insert_char(&mut self, character: char, at_where: usize) {
-        let mut result = String::new();
-
-        for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == at_where {
-                result.push(character);
-            }
-
-            result.push_str(&fragment.grapheme);
+    pub fn insert_char(&mut self, character: char, at_where: GraphemeIndex) {
+        if let Some(fragment) = self.fragments.get(at_where) {
+            self.string.insert(fragment.start_byte_index, character);
+        } else {
+            self.string.push(character);
         }
 
-        if at_where >= self.fragments.len() {
-            result.push(character);
-        }
-
-        self.fragments = Self::str_to_fragments(&result);
+        self.rerender_fragments();
     }
 
     pub fn append_char(&mut self, character: char) {
@@ -128,16 +131,16 @@ impl Line {
         );
     }
 
-    pub fn remove_char(&mut self, at_where: usize) {
-        let mut result = String::new();
+    pub fn remove_char(&mut self, at_where: GraphemeIndex) {
+        if let Some(fragment) = self.fragments.get(at_where) {
+            let start = fragment.start_byte_index;
+            let end = fragment
+                .start_byte_index
+                .saturating_add(fragment.grapheme.len());
 
-        for (index, fragment) in self.fragments.iter().enumerate() {
-            if index != at_where {
-                result.push_str(&fragment.grapheme)
-            }
+            self.string.drain(start..end);
+            self.rerender_fragments();
         }
-
-        self.fragments = Self::str_to_fragments(&result);
     }
 
     pub fn remove_last_char(&mut self) {
@@ -145,24 +148,23 @@ impl Line {
     }
 
     pub fn append(&mut self, other: &Self) {
-        let mut concat = self.to_string();
-        concat.push_str(&other.to_string());
-        self.fragments = Self::str_to_fragments(&concat);
+        self.string.push_str(&other.string);
+        self.rerender_fragments();
     }
 
-    pub fn split(&mut self, at_where: usize) -> Self {
-        let remainder = self.fragments.split_off(at_where);
+    pub fn split(&mut self, at_where: GraphemeIndex) -> Self {
+        if let Some(fragment) = self.fragments.get(at_where) {
+            let remainder = self.string.split_off(fragment.start_byte_index);
 
-        if at_where > self.fragments.len() {
+            self.rerender_fragments();
+
+            return Self::from(&remainder);
+        } else {
             return Self::default();
         }
-
-        return Self {
-            fragments: remainder
-        };
     }
 
-    pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {
+    pub fn get_visible_graphemes(&self, range: Range<GraphemeIndex>) -> String {
         if range.start >= range.end {
             return String::new();
         }
@@ -193,11 +195,38 @@ impl Line {
         return result;
     }
 
-    pub fn grapheme_count(&self) -> usize {
+    pub fn grapheme_count(&self) -> GraphemeIndex {
         return self.fragments.len();
     }
 
-    pub fn width_until(&self, grapheme_index: usize) -> usize {
+    fn byte_index_to_grapheme_index(&self, byte_index: ByteIndex) -> GraphemeIndex {
+        return self.fragments
+            .iter()
+            .position(
+                |fragment| {
+                    return fragment.start_byte_index >= byte_index;
+                }
+            )
+            .map_or(
+                0,
+                |grapheme_index| {
+                    return grapheme_index;
+                }
+            )
+    }
+
+    fn grapheme_index_to_byte_index(&self, grapheme_index: GraphemeIndex) -> ByteIndex {
+        return self.fragments
+            .get(grapheme_index)
+            .map_or(
+                0,
+                |fragment| {
+                    return fragment.start_byte_index;
+                }
+            )
+    }
+
+    pub fn width_until(&self, grapheme_index: GraphemeIndex) -> GraphemeIndex {
         return self.fragments
             .iter()
             .take(grapheme_index)
@@ -210,23 +239,65 @@ impl Line {
             .sum();
     }
 
-    pub fn width(&self) -> usize {
+    pub fn width(&self) -> GraphemeIndex {
         return self.width_until(self.grapheme_count());
+    }
+
+    pub fn search_next(&self, query: &str, from_grapheme_index: GraphemeIndex) -> Option<GraphemeIndex> {
+        let start_byte_index = self.grapheme_index_to_byte_index(from_grapheme_index);
+
+        return self.string
+            .get(start_byte_index..)
+            .and_then(
+                |substr| {
+                    return substr.find(query);
+                }
+            )
+            .map(
+                |byte_index| {
+                    return self.byte_index_to_grapheme_index(
+                        byte_index.saturating_add(start_byte_index)
+                    );
+                }
+            );
+    }
+
+    pub fn search_previous(&self, query: &str, from_grapheme_index: GraphemeIndex) -> Option<GraphemeIndex> {
+        let end_byte_index = if from_grapheme_index == self.grapheme_count() {
+            self.string.len()
+        } else {
+            self.grapheme_index_to_byte_index(from_grapheme_index)
+        };
+
+        return self.string
+            .get(..end_byte_index)
+            .and_then(
+                |substr| {
+                    return substr.match_indices(query).last();
+                }
+            )
+            .map(
+                |(index, _)| {
+                    return self.byte_index_to_grapheme_index(index);
+                }
+            );
     }
 }
 
 impl fmt::Display for Line {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        let result: String = self
-            .fragments
-            .iter()
-            .map(
-                |fragment| fragment.grapheme.clone()
-            ).collect();
-
         return write!(
             formatter,
-            "{result}",
+            "{}",
+            self.string
         );
+    }
+}
+
+impl Deref for Line {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        return &self.string;
     }
 }

@@ -72,10 +72,6 @@ impl Buffer {
     }
 
     pub fn insert_char(&mut self, character: char, at_where: Location) {
-        if at_where.line_index > self.height() {
-            return;
-        }
-
         if at_where.line_index == self.height() {
             self.lines.push(
                 Line::from(
@@ -124,6 +120,93 @@ impl Buffer {
                 self.modified = true;
             }
         }
+    }
+
+    pub fn search_next(&self, query: &str, from: Location) -> Option<Location> {
+        if query.is_empty() {
+            return None;
+        }
+
+        let mut is_first = true;
+
+        for (line_index, line) in self
+            .lines
+            .iter()
+            .enumerate()
+            .cycle()
+            .skip(
+                from.line_index
+            )
+            .take(
+                self
+                    .lines
+                    .len()
+                    .saturating_add(1)
+                ) {
+            let from_grapheme_index = if is_first {
+                is_first = false;
+                from.grapheme_index
+            } else {
+                0
+            };
+
+            if let Some(grapheme_index) = line.search_next(query, from_grapheme_index) {
+                return Some(
+                    Location {
+                        grapheme_index,
+                        line_index,
+                    }
+                );
+            }
+        }
+
+        return None;
+    }
+
+    pub fn search_previous(&self, query: &str, from: Location) -> Option<Location> {
+        if query.is_empty() {
+            return None;
+        }
+
+        let mut is_first = true;
+
+        for (line_index, line) in self
+            .lines
+            .iter()
+            .enumerate()
+            .rev()
+            .cycle()
+            .skip(
+                self
+                    .lines
+                    .len()
+                    .saturating_sub(from.line_index)
+                    .saturating_sub(1)
+            )
+            .take(
+                self
+                    .lines
+                    .len()
+                    .saturating_add(1)
+            ) {
+            let from_grapheme_index = if is_first {
+                is_first = false;
+                from.grapheme_index
+            } else {
+                line.grapheme_count()
+            };
+
+            if let Some(grapheme_index) = line.search_previous(query, from_grapheme_index) {
+                return Some(
+                    Location {
+                        grapheme_index,
+                        line_index,
+                    }
+                );
+            }
+        }
+
+        return None;
     }
 
     pub fn is_empty(&self) -> bool {

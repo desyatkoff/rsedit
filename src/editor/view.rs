@@ -1,5 +1,7 @@
 mod buffer;
 mod fileinfo;
+mod location;
+mod searchinfo;
 
 use std::{
     cmp::min,
@@ -13,6 +15,8 @@ use super::{
     Terminal,
     Size,
     Position,
+    Row,
+    Column,
     FileStatus,
     VERSION,
     UIElement,
@@ -20,11 +24,14 @@ use super::{
 };
 use buffer::Buffer;
 use fileinfo::FileInfo;
+use location::Location;
+use searchinfo::SearchInfo;
 
-#[derive(Default, Copy, Clone)]
-pub struct Location {
-    pub grapheme_index: usize,
-    pub line_index: usize,
+#[derive(Default, Clone, Copy, Eq, PartialEq)]
+pub enum SearchDirection {
+    #[default]
+    Forward,
+    Backward,
 }
 
 #[derive(Default)]
@@ -34,6 +41,7 @@ pub struct View {
     size: Size,
     text_location: Location,
     scroll_offset: Position,
+    search_info: Option<SearchInfo>,
 }
 
 impl View {
@@ -128,15 +136,43 @@ impl View {
         return self.text_location_to_position().saturating_sub(self.scroll_offset);
     }
 
+    fn center_text_location(&mut self) {
+        let Size {
+            width,
+            height
+        } = self.size;
+        let Position {
+            column,
+            row
+        } = self.text_location_to_position();
+
+        let horizontal_mid = width.div_ceil(2);
+        let vertical_mid = height.div_ceil(2);
+
+        self.scroll_offset.column = column.saturating_sub(horizontal_mid);
+        self.scroll_offset.row = row.saturating_sub(vertical_mid);
+
+        self.set_needs_redraw(true);
+    }
+
     fn text_location_to_position(&self) -> Position {
+        let column = self
+            .buffer
+            .lines
+            .get(
+                self.text_location.line_index
+            )
+            .map_or(
+                0,
+                |line| {
+                    return line.width_until(self.text_location.grapheme_index);
+                }
+            );
         let row = self.text_location.line_index;
-        let column = self.buffer.lines.get(row).map_or(0, |line| {
-            line.width_until(self.text_location.grapheme_index)
-        });
 
         return Position {
             column,
-            row
+            row,
         };
     }
 
@@ -186,7 +222,7 @@ impl View {
         self.text_location.line_index = min(self.text_location.line_index, self.buffer.height());
     }
 
-    fn scroll_horizontally(&mut self, to_where: usize) {
+    fn scroll_horizontally(&mut self, to_where: Column) {
         let Size {
             width,
             height: _
@@ -208,7 +244,7 @@ impl View {
         }
     }
 
-    fn scroll_vertically(&mut self, to_where: usize) {
+    fn scroll_vertically(&mut self, to_where: Row) {
         let Size {
             width: _,
             height
@@ -287,6 +323,97 @@ impl View {
         self.set_needs_redraw(true);
     }
 
+    pub fn enter_search(&mut self) {
+        self.search_info = Some(
+            SearchInfo {
+                previous_location: self.text_location,
+                previous_scroll_offset: self.scroll_offset,
+                query: None,
+            }
+        );
+    }
+
+    pub fn exit_search(&mut self) {
+        self.search_info = None;
+    }
+
+    pub fn dismiss_search(&mut self) {
+        if let Some(search_info) = &self.search_info {
+            self.text_location = search_info.previous_location;
+            self.scroll_offset = search_info.previous_scroll_offset;
+
+            self.scroll_text_location_into_view();
+        }
+
+        self.search_info = None;
+    }
+
+    pub fn search(&mut self, query: &str) {
+        if let Some(search_info) = &mut self.search_info {
+            search_info.query = Some(Line::from(query));
+        }
+
+        self.search_in_direction(
+            self.text_location,
+            SearchDirection::default(),
+        );
+    }
+
+    fn get_search_query(&self) -> Option<&Line> {
+        let query = self.search_info
+            .as_ref()
+            .and_then(
+                |search_info| {
+                    return search_info.query.as_ref();
+                }
+            );
+
+        return query;
+    }
+
+    fn search_in_direction(&mut self, from: Location, direction: SearchDirection) {
+        if let Some(location) = self
+            .get_search_query()
+            .and_then(
+                |query| {
+                    if query.is_empty() {
+                        return None;
+                    } else if direction == SearchDirection::Forward {
+                        return self.buffer.search_next(query, from);
+                    } else {
+                        return self.buffer.search_previous(query, from);
+                    }
+                }
+            ) {
+            self.text_location = location;
+            self.center_text_location();
+        };
+    }
+
+    pub fn search_next(&mut self) {
+        let next_step = self
+            .get_search_query()
+            .map_or(
+                1,
+                |query| {
+                    return min(
+                        query.grapheme_count(),
+                        1,
+                    );
+                }
+            );
+        let location = Location {
+            line_index: self.text_location.line_index,
+            grapheme_index: self.text_location.grapheme_index.saturating_add(next_step),
+        };
+
+        self.search_in_direction(location, SearchDirection::Forward);
+    }
+
+    pub fn search_previous(&mut self) {
+        self.search_in_direction(self.text_location, SearchDirection::Backward);
+    }
+
     fn render_line(line_number: usize, data: &str) -> Result<(), Error> {
         return Terminal::print_line(line_number, data);
     }
@@ -350,7 +477,7 @@ impl UIElement for View {
                     current_line,
                     &line.get_visible_graphemes(left..right)
                 )?;
-            } else if current_line == height / 3 && self.buffer.is_empty() {
+            } else if current_line == height.div_ceil(3) && self.buffer.is_empty() {
                 Self::render_line(
                     current_line,
                     &Self::render_welcome(width)

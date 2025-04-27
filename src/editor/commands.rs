@@ -147,6 +147,7 @@ pub enum System {
     Resize(Size),
     Quit,
     Dismiss,
+    Search,
 }
 
 impl TryFrom<KeyEvent> for System {
@@ -169,6 +170,11 @@ impl TryFrom<KeyEvent> for System {
                 Char('s') => {
                     return Ok(
                         Self::Save
+                    );
+                },
+                Char('f') => {
+                    return Ok(
+                        Self::Search
                     );
                 },
                 _ => {
