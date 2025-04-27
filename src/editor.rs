@@ -40,6 +40,12 @@ use commands::{
         Dismiss,
         Search,
     },
+    Move::{
+        Up,
+        Down,
+        Left,
+        Right,
+    },
     Edit::InsertLine,
 };
 use statusbar::StatusBar;
@@ -50,7 +56,11 @@ use uielements::{
     UIElement,
 };
 use line::Line;
-use position::Position;
+use position::{
+    Position,
+    Row,
+    Column,
+};
 use size::Size;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -182,13 +192,6 @@ impl Editor {
 
     fn process_search_command(&mut self, command: Command) {
         match command {
-            System(
-                Quit
-                | Resize(_)
-                | Search
-                | Save
-            )
-            | Move(_) => {},
             System(Dismiss) => {
                 self.set_prompt(PromptType::None);
                 self.view.dismiss_search();
@@ -206,6 +209,19 @@ impl Editor {
 
                 self.view.search(&query);
             },
+            Move(Up | Left) => {
+                self.view.search_previous();
+            },
+            Move(Down | Right) => {
+                self.view.search_next();
+            },
+            System(
+                Quit
+                | Resize(_)
+                | Search
+                | Save
+            )
+            | Move(_) => {},
         }
     }
 

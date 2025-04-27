@@ -1,7 +1,10 @@
+pub type Column = usize;
+pub type Row = usize;
+
 #[derive(Copy, Clone, Default)]
 pub struct Position {
-    pub column: usize,
-    pub row: usize,
+    pub column: Column,
+    pub row: Row,
 }
 
 impl Position {

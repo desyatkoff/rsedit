@@ -1,9 +1,15 @@
 use std::{
-    ops::Range,
+    ops::{
+        Range,
+        Deref,
+    },
     fmt,
 };
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
+
+type GraphemeIndex = usize;
+type ByteIndex = usize;
 
 #[derive(Copy, Clone)]
 enum GraphemeWidth {
@@ -24,6 +30,7 @@ impl GraphemeWidth {
     }
 }
 
+#[derive(Clone)]
 struct TextFragment {
     grapheme: String,
     rendered_width: GraphemeWidth,
@@ -31,7 +38,7 @@ struct TextFragment {
     start_byte_index: usize,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Line {
     fragments: Vec<TextFragment>,
     string: String,
@@ -107,7 +114,7 @@ impl Line {
         }
     }
 
-    pub fn insert_char(&mut self, character: char, at_where: usize) {
+    pub fn insert_char(&mut self, character: char, at_where: GraphemeIndex) {
         if let Some(fragment) = self.fragments.get(at_where) {
             self.string.insert(fragment.start_byte_index, character);
         } else {
@@ -124,7 +131,7 @@ impl Line {
         );
     }
 
-    pub fn remove_char(&mut self, at_where: usize) {
+    pub fn remove_char(&mut self, at_where: GraphemeIndex) {
         if let Some(fragment) = self.fragments.get(at_where) {
             let start = fragment.start_byte_index;
             let end = fragment
@@ -145,7 +152,7 @@ impl Line {
         self.rerender_fragments();
     }
 
-    pub fn split(&mut self, at_where: usize) -> Self {
+    pub fn split(&mut self, at_where: GraphemeIndex) -> Self {
         if let Some(fragment) = self.fragments.get(at_where) {
             let remainder = self.string.split_off(fragment.start_byte_index);
 
@@ -157,7 +164,7 @@ impl Line {
         }
     }
 
-    pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {
+    pub fn get_visible_graphemes(&self, range: Range<GraphemeIndex>) -> String {
         if range.start >= range.end {
             return String::new();
         }
@@ -188,31 +195,38 @@ impl Line {
         return result;
     }
 
-    pub fn grapheme_count(&self) -> usize {
+    pub fn grapheme_count(&self) -> GraphemeIndex {
         return self.fragments.len();
     }
 
-    fn byte_index_to_grapheme_index(&self, byte_index: usize) -> usize {
-        for (grapheme_index, fragment) in self.fragments.iter().enumerate() {
-            if fragment.start_byte_index >= byte_index {
-                return grapheme_index;
-            }
-        }
-
-        return 0;
-    }
-
-    pub fn search(&self, query: &str) -> Option<usize> {
-        return self.string
-            .find(query)
-            .map(
-                |byte_index| {
-                    return self.byte_index_to_grapheme_index(byte_index);
+    fn byte_index_to_grapheme_index(&self, byte_index: ByteIndex) -> GraphemeIndex {
+        return self.fragments
+            .iter()
+            .position(
+                |fragment| {
+                    return fragment.start_byte_index >= byte_index;
                 }
-            );
+            )
+            .map_or(
+                0,
+                |grapheme_index| {
+                    return grapheme_index;
+                }
+            )
     }
 
-    pub fn width_until(&self, grapheme_index: usize) -> usize {
+    fn grapheme_index_to_byte_index(&self, grapheme_index: GraphemeIndex) -> ByteIndex {
+        return self.fragments
+            .get(grapheme_index)
+            .map_or(
+                0,
+                |fragment| {
+                    return fragment.start_byte_index;
+                }
+            )
+    }
+
+    pub fn width_until(&self, grapheme_index: GraphemeIndex) -> GraphemeIndex {
         return self.fragments
             .iter()
             .take(grapheme_index)
@@ -225,8 +239,48 @@ impl Line {
             .sum();
     }
 
-    pub fn width(&self) -> usize {
+    pub fn width(&self) -> GraphemeIndex {
         return self.width_until(self.grapheme_count());
+    }
+
+    pub fn search_next(&self, query: &str, from_grapheme_index: GraphemeIndex) -> Option<GraphemeIndex> {
+        let start_byte_index = self.grapheme_index_to_byte_index(from_grapheme_index);
+
+        return self.string
+            .get(start_byte_index..)
+            .and_then(
+                |substr| {
+                    return substr.find(query);
+                }
+            )
+            .map(
+                |byte_index| {
+                    return self.byte_index_to_grapheme_index(
+                        byte_index.saturating_add(start_byte_index)
+                    );
+                }
+            );
+    }
+
+    pub fn search_previous(&self, query: &str, from_grapheme_index: GraphemeIndex) -> Option<GraphemeIndex> {
+        let end_byte_index = if from_grapheme_index == self.grapheme_count() {
+            self.string.len()
+        } else {
+            self.grapheme_index_to_byte_index(from_grapheme_index)
+        };
+
+        return self.string
+            .get(..end_byte_index)
+            .and_then(
+                |substr| {
+                    return substr.match_indices(query).last();
+                }
+            )
+            .map(
+                |(index, _)| {
+                    return self.byte_index_to_grapheme_index(index);
+                }
+            );
     }
 }
 
@@ -237,5 +291,13 @@ impl fmt::Display for Line {
             "{}",
             self.string
         );
+    }
+}
+
+impl Deref for Line {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        return &self.string;
     }
 }
