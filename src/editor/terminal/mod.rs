@@ -1,3 +1,5 @@
+mod attribute;
+
 use std::io::{
     stdout,
     Write,
@@ -22,15 +24,23 @@ use crossterm::{
         Show,
     },
     style::{
+        Attribute::{
+            Reset,
+            Reverse,
+        },
         Print,
-        Attribute,
+        ResetColor,
+        SetBackgroundColor,
+        SetForegroundColor,
     },
     queue,
     Command,
 };
+use attribute::Attribute;
 use super::{
     Position,
     Size,
+    AnnotatedString,
 };
 
 pub struct Terminal;
@@ -152,18 +162,63 @@ impl Terminal {
         return Ok(());
     }
 
+    pub fn print_annotated_line(line_number: usize, annotated_string: &AnnotatedString) -> Result<(), Error> {
+        Self::move_cursor_to(
+            Position {
+                column: 0,
+                row: line_number,
+            }
+        )?;
+
+        Self::clear_line()?;
+
+        annotated_string
+            .into_iter()
+            .try_for_each(
+                |part| -> Result<(), Error> {
+                    if let Some(annotation_type) = part.annotation_type {
+                        let attribute: Attribute = annotation_type.into();
+
+                        Self::set_attribute(&attribute)?;
+                    }
+
+                    Self::print(part.string)?;
+                    Self::reset_color()?;
+
+                    return Ok(());
+                }
+            )?;
+
+        return Ok(());
+    }
+
+    fn set_attribute(attribute: &Attribute) -> Result<(), Error> {
+        if let Some(foreground_color) = attribute.foreground {
+            Self::queue_cmd(SetForegroundColor(foreground_color))?;
+        }
+
+        if let Some(background_color) = attribute.background {
+            Self::queue_cmd(SetBackgroundColor(background_color))?;
+        }
+
+        return Ok(());
+    }
+
+    fn reset_color() -> Result<(), Error> {
+        Self::queue_cmd(ResetColor)?;
+
+        return Ok(());
+    }
+
     pub fn print_inverted_line(line_number: usize, data: &str) -> Result<(), Error> {
         let width = Self::size()?.width;
 
         return Self::print_line(
             line_number,
             &format!(
-                "{}{:width$.width$}{}",
-                Attribute::Reverse,
-                data,
-                Attribute::Reset,
+                "{Reverse}{data:width$.width$}{Reset}"
             ),
-        );
+        )
     }
 
     pub fn size() -> Result<Size, Error> {

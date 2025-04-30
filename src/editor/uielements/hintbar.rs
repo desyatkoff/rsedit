@@ -1,7 +1,9 @@
 use std::io::Error;
 use super::{
-    Terminal,
-    Size,
+    super::{
+        Terminal,
+        Size,
+    },
     UIElement,
 };
 

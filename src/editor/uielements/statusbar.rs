@@ -1,9 +1,11 @@
 use std::io::Error;
 use super::{
-    Terminal,
-    Size,
+    super::{
+        Terminal,
+        Size,
+        FileStatus,
+    },
     UIElement,
-    FileStatus,
 };
 
 #[derive(Default)]

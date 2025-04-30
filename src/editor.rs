@@ -1,14 +1,11 @@
 mod terminal;
-mod view;
 mod commands;
-mod statusbar;
 mod filestatus;
-mod hintbar;
 mod uielements;
-mod commandbar;
 mod line;
 mod position;
 mod size;
+mod annotatedstring;
 
 use std::{
     io::Error,
@@ -25,7 +22,6 @@ use crossterm::event::{
     KeyEventKind,
 };
 use terminal::Terminal;
-use view::View;
 use commands::{
     Command,
     Command::{
@@ -48,13 +44,7 @@ use commands::{
     },
     Edit::InsertLine,
 };
-use statusbar::StatusBar;
 use filestatus::FileStatus;
-use hintbar::HintBar;
-use commandbar::CommandBar;
-use uielements::{
-    UIElement,
-};
 use line::Line;
 use position::{
     Position,
@@ -62,6 +52,17 @@ use position::{
     Column,
 };
 use size::Size;
+use annotatedstring::{
+    AnnotatedString,
+    AnnotationType,
+};
+use uielements::{
+    UIElement,
+    View,
+    StatusBar,
+    HintBar,
+    CommandBar,
+};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

@@ -1,5 +1,5 @@
 use std::io::Error;
-use super::Size;
+use super::super::Size;
 
 pub trait UIElement {
     fn set_needs_redraw(&mut self, value: bool);
