@@ -3,11 +3,13 @@ use std::{
     io::Error
 };
 use super::{
-    commands::Edit,
-    uielements::UIElement,
-    Line,
-    Size,
-    Terminal,
+    super::{
+        commands::Edit,
+        Line,
+        Size,
+        Terminal,
+    },
+    uielement::UIElement,
 };
 
 #[derive(Default)]
