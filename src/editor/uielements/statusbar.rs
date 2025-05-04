@@ -57,15 +57,10 @@ impl UIElement for StatusBar {
         let final_status = format!(
             "{left}{right:>remainder_length$}"
         );
-        let to_print = if final_status.len() <= self.size.width {
-            final_status
-        } else {
-            String::new()
-        };
 
         Terminal::print_inverted_line(
             row,
-            &to_print,
+            &final_status,
         )?;
 
         return Ok(());

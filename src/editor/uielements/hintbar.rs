@@ -14,7 +14,7 @@ struct Hint {
 impl Default for Hint {
     fn default() -> Self {
         return Self {
-            text: String::from("[ Control + S -> Save ] [ Control + Q -> Quit ]"),
+            text: String::from("[ Control + F -> Search ] [ Control + S -> Save ] [ Control + Q -> Quit ]"),
         };
     }
 }
